@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.handler.ssl.SslHandler;
@@ -50,6 +51,8 @@ import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.thingsboard.mqtt.broker.common.data.BrokerConstants.EMPTY_STR;
 import static org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType.HTTP;
@@ -58,6 +61,8 @@ import static org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderT
 @Service
 @RequiredArgsConstructor
 public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMqttAuthProviderConfiguration> {
+
+    private static final Pattern REQUEST_VARIABLE = Pattern.compile("\\$\\{(commonName|clientId|username|password)}");
 
     private final MqttAuthProviderService mqttAuthProviderService;
     private final AuthorizationRuleService authorizationRuleService;
@@ -133,11 +138,18 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
         String password = authContext.getPasswordBytes() != null ?
                 new String(authContext.getPasswordBytes(), StandardCharsets.UTF_8) : EMPTY_STR;
 
-        return requestBody
-                .replace("${commonName}", commonName)
-                .replace("${clientId}", clientId)
-                .replace("${username}", username)
-                .replace("${password}", password);
+        // Match only the configured JSON template. Inserted values are literal
+        // JSON string content and must never become another template variable.
+        return REQUEST_VARIABLE.matcher(requestBody).replaceAll(match -> {
+            String value = switch (match.group(1)) {
+                case "commonName" -> commonName;
+                case "clientId" -> clientId;
+                case "username" -> username;
+                case "password" -> password;
+                default -> throw new IllegalStateException("Unknown HTTP authentication variable");
+            };
+            return Matcher.quoteReplacement(new String(JsonStringEncoder.getInstance().quoteAsString(value)));
+        });
     }
 
     @SneakyThrows

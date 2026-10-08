@@ -16,6 +16,10 @@
 package org.thingsboard.mqtt.broker.service.testing.integration;
 
 import com.sun.net.httpserver.HttpServer;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.UUID;
 import org.awaitility.Awaitility;
 import org.eclipse.paho.mqttv5.client.MqttClient;
 import org.eclipse.paho.mqttv5.client.MqttConnectionOptions;
@@ -66,6 +70,7 @@ public class HttpAuthAdmissionIntegrationTestCase extends AbstractPubSubIntegrat
     private HttpServer server;
     private final Semaphore requests = new Semaphore(0);
     private HttpAuthClient httpClient;
+    private final AtomicReference<JsonNode> requestBody = new AtomicReference<>();
 
     @Before
     @Override
@@ -73,7 +78,11 @@ public class HttpAuthAdmissionIntegrationTestCase extends AbstractPubSubIntegrat
         super.beforeTest();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/auth", exchange -> {
-            exchange.getRequestBody().readAllBytes();
+            try {
+                requestBody.set(JacksonUtil.toJsonNode(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            } catch (Exception ignored) {
+                requestBody.set(null);
+            }
             requests.release();
             byte[] body = "{\"result\":\"success\"}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -134,6 +143,32 @@ public class HttpAuthAdmissionIntegrationTestCase extends AbstractPubSubIntegrat
         connectSuccessfully("http-admission-recovered");
         assertThat(requests.tryAcquire(2, TimeUnit.SECONDS)).isTrue();
         assertThat(httpClient.getSemaphore().availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    public void mqttConnectPreservesLiteralClientIdentityAndCredentialsThroughHttp() throws Exception {
+        String id = "http-\\u0066-${username}-\"";
+        String username = "literal-${password}-\\path-\"";
+        byte[] credential = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+        MqttClient mqtt = client(id);
+        try {
+            var connection = options();
+            connection.setUserName(username);
+            connection.setPassword(credential);
+            mqtt.connect(connection);
+            assertThat(mqtt.isConnected()).isTrue();
+            assertThat(requests.tryAcquire(2, TimeUnit.SECONDS)).isTrue();
+            JsonNode body = requestBody.get();
+            assertThat(body).isNotNull();
+            assertThat(body.size()).isEqualTo(3);
+            assertThat(body.path("clientId").asText()).isEqualTo(id);
+            assertThat(body.path("username").asText()).isEqualTo(username);
+            assertThat(body.path("password").asText().getBytes(StandardCharsets.UTF_8)).isEqualTo(credential);
+            mqtt.disconnect();
+        } finally {
+            if (mqtt.isConnected()) mqtt.disconnectForcibly();
+            mqtt.close();
+        }
     }
 
     private MqttClient client(String id) throws MqttException {
