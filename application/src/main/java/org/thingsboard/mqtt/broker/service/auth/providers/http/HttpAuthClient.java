@@ -50,6 +50,7 @@ import reactor.netty.resources.ConnectionProvider;
 import javax.net.ssl.SSLException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,9 @@ public class HttpAuthClient {
     HttpAuthClient(HttpMqttAuthProviderConfiguration configuration) {
         try {
             config = configuration;
+            if (config.getReadTimeoutMs() <= 0) {
+                throw new IllegalArgumentException("HTTP authentication timeout must be positive");
+            }
             if (config.getMaxParallelRequestsCount() > 0) {
                 semaphore = new Semaphore(config.getMaxParallelRequestsCount());
             }
@@ -285,6 +289,9 @@ public class HttpAuthClient {
         request
                 .retrieve()
                 .toEntity(JsonNode.class)
+                // Bound DNS, pool wait, TCP/TLS setup and the entire response body.
+                // A socket read-idle timeout alone misses connection outages and trickling bodies.
+                .timeout(Duration.ofMillis(config.getReadTimeoutMs()))
                 .subscribe(responseEntity -> {
                     if (semaphore != null) {
                         semaphore.release();
