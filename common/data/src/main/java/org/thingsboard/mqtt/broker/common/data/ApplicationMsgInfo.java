@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ApplicationMsgInfo {
 
-    private long offset;
+    private ApplicationMessageId messageId;
     private int packetId;
 
 }

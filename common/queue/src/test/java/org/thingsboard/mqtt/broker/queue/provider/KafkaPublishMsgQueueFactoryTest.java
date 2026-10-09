@@ -20,6 +20,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.thingsboard.mqtt.broker.queue.kafka.settings.PublishMsgKafkaSettings;
+import org.thingsboard.mqtt.broker.queue.kafka.settings.ApplicationPersistenceMsgKafkaSettings;
+import org.thingsboard.mqtt.broker.queue.kafka.settings.ApplicationSharedTopicMsgKafkaSettings;
 import org.thingsboard.mqtt.broker.queue.kafka.settings.TbKafkaConsumerSettings;
 
 import java.util.Properties;
@@ -44,6 +46,25 @@ class KafkaPublishMsgQueueFactoryTest {
         Properties properties = new Properties();
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         assertInitialPosition(properties);
+    }
+
+    @Test
+    void sharedReconnectWithoutFirstCommitMustReplayPendingRecords() {
+        Properties props = new Properties();
+        props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+        props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        KafkaApplicationPersistenceMsgQueueFactory factory = new KafkaApplicationPersistenceMsgQueueFactory(
+                mock(ApplicationPersistenceMsgKafkaSettings.class), mock(ApplicationSharedTopicMsgKafkaSettings.class));
+        factory.consumerSettings = mock(TbKafkaConsumerSettings.class);
+        when(factory.consumerSettings.toProps(any())).thenReturn(props);
+        factory.kafkaPrefix = "test.";
+        AtomicReference<Properties> actual = new AtomicReference<>();
+        try (MockedConstruction<KafkaConsumer> ignored = mockConstruction(KafkaConsumer.class,
+                (consumer, context) -> actual.set((Properties) context.arguments().get(0)))) {
+            factory.createConsumerForSharedTopic("shared-topic", "shared-group", "reconnect");
+        }
+        assertNotNull(actual.get());
+        assertEquals("earliest", new ConsumerConfig(actual.get()).getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
     }
 
     private void assertInitialPosition(Properties properties) {

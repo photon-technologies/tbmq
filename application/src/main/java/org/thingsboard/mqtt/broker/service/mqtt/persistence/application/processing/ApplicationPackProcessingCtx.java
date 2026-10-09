@@ -108,7 +108,7 @@ public class ApplicationPackProcessingCtx {
             stats.logPubRecLatency(processingStartTimeNanos, TimeUnit.NANOSECONDS);
 
             if (sendPubRelMsg) {
-                pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(packetId, msg.getPacketOffset()));
+                pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(packetId, msg.getMessageId()));
             }
             onPublishMsgSuccess(packetId);
             return true;

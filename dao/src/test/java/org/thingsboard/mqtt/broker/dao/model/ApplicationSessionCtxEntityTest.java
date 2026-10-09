@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.Test;
 import org.thingsboard.mqtt.broker.common.data.ApplicationMsgInfo;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.thingsboard.mqtt.broker.common.data.ApplicationSessionCtx;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 
@@ -32,11 +33,11 @@ public class ApplicationSessionCtxEntityTest {
     @Test
     public void testConstructorAndToData() {
         ObjectNode publish1 = JacksonUtil.newObjectNode();
-        publish1.put("offset", 2L);
+        publish1.set("messageId", JacksonUtil.valueToTree(ApplicationMessageId.main(0, 2L)));
         publish1.put("packetId", 3);
 
         ObjectNode publish2 = JacksonUtil.newObjectNode();
-        publish2.put("offset", 3L);
+        publish2.set("messageId", JacksonUtil.valueToTree(ApplicationMessageId.main(0, 3L)));
         publish2.put("packetId", 4);
 
         ArrayNode publishMsgs = JacksonUtil.newArrayNode();
@@ -44,11 +45,11 @@ public class ApplicationSessionCtxEntityTest {
         publishMsgs.add(publish2);
 
         ObjectNode pubrel1 = JacksonUtil.newObjectNode();
-        pubrel1.put("offset", 0L);
+        pubrel1.set("messageId", JacksonUtil.valueToTree(ApplicationMessageId.main(0, 0L)));
         pubrel1.put("packetId", 1);
 
         ObjectNode pubrel2 = JacksonUtil.newObjectNode();
-        pubrel2.put("offset", 1L);
+        pubrel2.set("messageId", JacksonUtil.valueToTree(ApplicationMessageId.main(0, 1L)));
         pubrel2.put("packetId", 2);
 
         ArrayNode pubrelMsgs = JacksonUtil.newArrayNode();
@@ -56,12 +57,12 @@ public class ApplicationSessionCtxEntityTest {
         pubrelMsgs.add(pubrel2);
 
         List<ApplicationMsgInfo> publishMsgInfos = Arrays.asList(
-                new ApplicationMsgInfo(2L, 3),
-                new ApplicationMsgInfo(3L, 4)
+                new ApplicationMsgInfo(ApplicationMessageId.main(0, 2L), 3),
+                new ApplicationMsgInfo(ApplicationMessageId.main(0, 3L), 4)
         );
         List<ApplicationMsgInfo> pubRelMsgInfos = Arrays.asList(
-                new ApplicationMsgInfo(0L, 1),
-                new ApplicationMsgInfo(1L, 2)
+                new ApplicationMsgInfo(ApplicationMessageId.main(0, 0L), 1),
+                new ApplicationMsgInfo(ApplicationMessageId.main(0, 1L), 2)
         );
         long ts = System.currentTimeMillis();
         String clientId = "client";

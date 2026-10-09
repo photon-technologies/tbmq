@@ -16,11 +16,16 @@
 package org.thingsboard.mqtt.broker.service.mqtt.persistence.application.processing;
 
 import org.thingsboard.mqtt.broker.common.data.PersistedPacketType;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.thingsboard.mqtt.broker.service.mqtt.PublishMsg;
 
 public interface PersistedMsg {
 
-    long getPacketOffset();
+    ApplicationMessageId getMessageId();
+
+    default long getPacketOffset() {
+        return getMessageId().offset();
+    }
 
     int getPacketId();
 

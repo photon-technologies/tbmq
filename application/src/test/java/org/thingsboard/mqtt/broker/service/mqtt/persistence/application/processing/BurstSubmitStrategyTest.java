@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.persistence.application.processing;
 
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.service.mqtt.PublishMsg;
 
@@ -28,7 +29,7 @@ class BurstSubmitStrategyTest {
     @Test
     void update_rebuildsFromDupFlaggedReprocessCopies_notTheOriginalMessages() {
         PublishMsg publishMsg = new PublishMsg(1, "test/topic", new byte[]{1}, 1, false, false);
-        PersistedPublishMsg original = new PersistedPublishMsg(publishMsg, 10L, false);
+        PersistedPublishMsg original = new PersistedPublishMsg(publishMsg, ApplicationMessageId.main(0, 10L), false);
 
         BurstSubmitStrategy strategy = new BurstSubmitStrategy("appClient");
         strategy.init(List.of(original));
@@ -54,8 +55,8 @@ class BurstSubmitStrategyTest {
     void update_multiMessage_preservesOrderAndSubstitutesBothDupCopies() {
         PublishMsg msg1 = new PublishMsg(1, "test/topic", new byte[]{1}, 1, false, false);
         PublishMsg msg2 = new PublishMsg(2, "test/topic", new byte[]{2}, 1, false, false);
-        PersistedPublishMsg original1 = new PersistedPublishMsg(msg1, 10L, false);
-        PersistedPublishMsg original2 = new PersistedPublishMsg(msg2, 20L, false);
+        PersistedPublishMsg original1 = new PersistedPublishMsg(msg1, ApplicationMessageId.main(0, 10L), false);
+        PersistedPublishMsg original2 = new PersistedPublishMsg(msg2, ApplicationMessageId.main(0, 20L), false);
 
         BurstSubmitStrategy strategy = new BurstSubmitStrategy("appClient");
         strategy.init(List.of(original1, original2));
@@ -87,8 +88,8 @@ class BurstSubmitStrategyTest {
     void update_dropFiltering_dropsMessageAbsentFromReprocessMap() {
         PublishMsg msg1 = new PublishMsg(1, "test/topic", new byte[]{1}, 1, false, false);
         PublishMsg msg2 = new PublishMsg(2, "test/topic", new byte[]{2}, 1, false, false);
-        PersistedPublishMsg original1 = new PersistedPublishMsg(msg1, 10L, false);
-        PersistedPublishMsg original2 = new PersistedPublishMsg(msg2, 20L, false);
+        PersistedPublishMsg original1 = new PersistedPublishMsg(msg1, ApplicationMessageId.main(0, 10L), false);
+        PersistedPublishMsg original2 = new PersistedPublishMsg(msg2, ApplicationMessageId.main(0, 20L), false);
 
         BurstSubmitStrategy strategy = new BurstSubmitStrategy("appClient");
         strategy.init(List.of(original1, original2));

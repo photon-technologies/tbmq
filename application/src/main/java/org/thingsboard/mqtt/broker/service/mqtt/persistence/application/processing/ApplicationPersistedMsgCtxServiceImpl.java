@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 import org.thingsboard.mqtt.broker.common.data.ApplicationMsgInfo;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.thingsboard.mqtt.broker.common.data.ApplicationSessionCtx;
 import org.thingsboard.mqtt.broker.dao.client.application.ApplicationSessionCtxService;
 
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -47,8 +49,8 @@ public class ApplicationPersistedMsgCtxServiceImpl implements ApplicationPersist
         if (applicationSessionCtx == null) {
             return new ApplicationPersistedMsgCtx(Collections.emptyMap(), Collections.emptyMap());
         }
-        Map<Long, Integer> publishMsgIds = getPendingMsgsFromApplicationCtx(applicationSessionCtx.getPublishMsgInfos());
-        Map<Long, Integer> pubRelMsgIds = getPendingMsgsFromApplicationCtx(applicationSessionCtx.getPubRelMsgInfos());
+        Map<ApplicationMessageId, Integer> publishMsgIds = getPendingMsgsFromApplicationCtx(applicationSessionCtx.getPublishMsgInfos());
+        Map<ApplicationMessageId, Integer> pubRelMsgIds = getPendingMsgsFromApplicationCtx(applicationSessionCtx.getPubRelMsgInfos());
         return new ApplicationPersistedMsgCtx(publishMsgIds, pubRelMsgIds);
     }
 
@@ -56,29 +58,48 @@ public class ApplicationPersistedMsgCtxServiceImpl implements ApplicationPersist
         return sessionCtxService.findApplicationSessionCtx(clientId).orElse(null);
     }
 
-    private Map<Long, Integer> getPendingMsgsFromApplicationCtx(Collection<ApplicationMsgInfo> applicationSessionCtx) {
+    private Map<ApplicationMessageId, Integer> getPendingMsgsFromApplicationCtx(Collection<ApplicationMsgInfo> applicationSessionCtx) {
         return applicationSessionCtx.stream()
-                .collect(Collectors.toMap(ApplicationMsgInfo::getOffset, ApplicationMsgInfo::getPacketId));
+                .collect(Collectors.toMap(info -> {
+                    if (info.getMessageId() == null) {
+                        throw new IllegalStateException("Unscoped legacy application context requires an explicit drained migration");
+                    }
+                    return info.getMessageId();
+                }, ApplicationMsgInfo::getPacketId, (left, right) -> {
+                    if (!left.equals(right)) {
+                        throw new IllegalStateException("Conflicting packet IDs for one application record");
+                    }
+                    return left;
+                }));
     }
 
     @Override
-    public void saveContext(String clientId, ApplicationPackProcessingCtx processingContext) {
+    public void saveContext(String clientId, ApplicationPackProcessingCtx processingContext, ApplicationPersistedMsgCtx restored) {
         if (log.isTraceEnabled()) {
             log.trace("[{}] Executing save application session context.", clientId);
         }
-        if (processingContext == null) {
+        if (restored == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] No pack processing context found.", clientId);
             }
             return;
         }
-        Stream<PersistedPublishMsg> publishMsgStream = toPublishMsgStream(processingContext);
-        Collection<ApplicationMsgInfo> publishMsgInfos = toPublishMsgInfos(publishMsgStream);
-
-        Stream<PersistedPubRelMsg> pubRelMsgStream = toPubRelMsgStream(processingContext);
-        Collection<ApplicationMsgInfo> pubRelMsgInfos = toPubRelMsgInfos(pubRelMsgStream);
-
-        ApplicationSessionCtx sessionCtx = buildApplicationSessionCtx(clientId, publishMsgInfos, pubRelMsgInfos);
+        // Retain loaded packets that have not been polled yet. An immediate second
+        // disconnect must not replace the durable snapshot with an empty active pack.
+        Map<ApplicationMessageId, Integer> publishes = new HashMap<>(restored.getPublishMsgIds());
+        Map<ApplicationMessageId, Integer> pubrels = new HashMap<>(restored.getPubRelMsgIds());
+        if (processingContext != null) {
+            toPublishMsgStream(processingContext).forEach(msg -> {
+                publishes.put(msg.getMessageId(), msg.getPacketId());
+                pubrels.remove(msg.getMessageId());
+            });
+            toPubRelMsgStream(processingContext).forEach(msg -> {
+                pubrels.put(msg.getMessageId(), msg.getPacketId());
+                publishes.remove(msg.getMessageId());
+            });
+        }
+        ApplicationSessionCtx sessionCtx = buildApplicationSessionCtx(clientId,
+                toMessageInfos(publishes), toMessageInfos(pubrels));
         if (log.isTraceEnabled()) {
             log.trace("[{}] Saving application session context - {}.", clientId, sessionCtx);
         }
@@ -96,23 +117,10 @@ public class ApplicationPersistedMsgCtxServiceImpl implements ApplicationPersist
         );
     }
 
-    private Collection<ApplicationMsgInfo> toPublishMsgInfos(Stream<PersistedPublishMsg> publishMsgStream) {
-        return publishMsgStream
-                .map(publishMsg -> buildApplicationMsgInfo(publishMsg.getPacketId(), publishMsg.getPacketOffset()))
+    private List<ApplicationMsgInfo> toMessageInfos(Map<ApplicationMessageId, Integer> packets) {
+        return packets.entrySet().stream()
+                .map(entry -> new ApplicationMsgInfo(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
-    }
-
-    private List<ApplicationMsgInfo> toPubRelMsgInfos(Stream<PersistedPubRelMsg> pubRelMsgStream) {
-        return pubRelMsgStream
-                .map(pubRelMsg -> buildApplicationMsgInfo(pubRelMsg.getPacketId(), pubRelMsg.getPacketOffset()))
-                .collect(Collectors.toList());
-    }
-
-    private ApplicationMsgInfo buildApplicationMsgInfo(int packetId, long packetOffset) {
-        return ApplicationMsgInfo.builder()
-                .packetId(packetId)
-                .offset(packetOffset)
-                .build();
     }
 
     private ApplicationSessionCtx buildApplicationSessionCtx(String clientId,

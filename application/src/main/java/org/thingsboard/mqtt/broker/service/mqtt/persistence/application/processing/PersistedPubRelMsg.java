@@ -20,6 +20,7 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.thingsboard.mqtt.broker.common.data.PersistedPacketType;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 
 @EqualsAndHashCode
 @AllArgsConstructor
@@ -28,11 +29,11 @@ import org.thingsboard.mqtt.broker.common.data.PersistedPacketType;
 public class PersistedPubRelMsg implements PersistedMsg {
 
     private final int packetId;
-    private final long offset;
+    private final ApplicationMessageId messageId;
 
     @Override
-    public long getPacketOffset() {
-        return offset;
+    public ApplicationMessageId getMessageId() {
+        return messageId;
     }
 
     @Override

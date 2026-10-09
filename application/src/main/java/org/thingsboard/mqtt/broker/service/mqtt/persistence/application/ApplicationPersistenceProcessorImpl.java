@@ -27,6 +27,7 @@ import org.springframework.util.CollectionUtils;
 import org.thingsboard.mqtt.broker.actors.client.messages.mqtt.MqttDisconnectMsg;
 import org.thingsboard.mqtt.broker.actors.client.state.ClientActorStateInfo;
 import org.thingsboard.mqtt.broker.adaptor.ProtoConverter;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.thingsboard.mqtt.broker.common.data.mqtt.MsgExpiryResult;
 import org.thingsboard.mqtt.broker.common.util.ThingsBoardExecutors;
 import org.thingsboard.mqtt.broker.gen.queue.PublishMsgProto;
@@ -149,7 +150,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
             log.info("[{}] Saving processing context before shutting down", clientId);
             ApplicationPackProcessingCtx processingContext = mergePackProcessingContexts(clientId);
             try {
-                unacknowledgedPersistedMsgCtxService.saveContext(clientId, processingContext);
+                unacknowledgedPersistedMsgCtxService.saveContext(clientId, processingContext, persistedMsgCtxMap.get(clientId));
             } catch (Exception e) {
                 log.warn("[{}] Failed to save application processing context", clientId, e);
             }
@@ -169,6 +170,17 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
                 return;
             }
         }
+        ApplicationPersistedMsgCtx restored;
+        try {
+            // Establish one complete snapshot before either main or shared workers start.
+            restored = unacknowledgedPersistedMsgCtxService.loadPersistedMsgCtx(clientId);
+            clientState.getCurrentSessionCtx().getMsgIdSeq().updateMsgIdSequence(restored.getLastPacketId());
+            persistedMsgCtxMap.put(clientId, restored);
+        } catch (Exception e) {
+            log.warn("[{}] Failed to restore application message context", clientId, e);
+            disconnectClient(clientId, clientState);
+            return;
+        }
         String clientTopic = applicationTopicService.createTopic(clientId);
         clientLogger.logEvent(clientId, this.getClass(), "Starting processing persisted messages");
         log.debug("[{}] Starting persisted messages processing", clientId);
@@ -177,7 +189,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         mainProcessingStates.put(clientId, state);
         Future<?> future = persistedMessageConsumerExecutor.submit(() -> {
             try {
-                processPersistedMessages(consumer, clientState);
+                processPersistedMessages(consumer, clientState, restored);
             } catch (Exception e) {
                 log.warn("[{}] Failed to start processing persisted messages", clientId, e);
                 disconnectClient(clientId, clientState);
@@ -198,7 +210,11 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         clientLogger.logEvent(clientId, this.getClass(), "Starting processing shared subscriptions persisted messages");
         log.debug("[{}][{}] Starting persisted shared subscriptions processing", clientId, subscriptions);
 
-        ApplicationPersistedMsgCtx persistedMsgCtx = persistedMsgCtxMap.getOrDefault(clientId, new ApplicationPersistedMsgCtx());
+        ApplicationPersistedMsgCtx persistedMsgCtx = persistedMsgCtxMap.get(clientId);
+        if (persistedMsgCtx == null) {
+            // Restoration failed or this session was stopped; never invent an empty snapshot.
+            return;
+        }
 
         for (TopicSharedSubscription subscription : subscriptions) {
             TbQueueControlledOffsetConsumer<TbProtoQueueMsg<PublishMsgProto>> consumer = initSharedConsumerIfNotPresent(clientId, subscription);
@@ -224,7 +240,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         stopSharedSubscriptionConsumers(clientId);
 
         ApplicationPackProcessingCtx processingContext = mergePackProcessingContexts(clientId);
-        unacknowledgedPersistedMsgCtxService.saveContext(clientId, processingContext);
+        unacknowledgedPersistedMsgCtxService.saveContext(clientId, processingContext, persistedMsgCtxMap.get(clientId));
         persistedMsgCtxMap.remove(clientId);
     }
 
@@ -254,6 +270,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
 
     @Override
     public void processPubAck(String clientId, int packetId) {
+        releaseRestoredPacketId(clientId, packetId);
         ApplicationPackProcessingCtx processingContext = mainPackProcessingCtxMap.get(clientId);
         if (processingContext == null) {
             if (isDebugEnabled) {
@@ -279,6 +296,10 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
     @Override
     public void processPubRec(ClientSessionCtx clientSessionCtx, int packetId) {
         String clientId = clientSessionCtx.getClientId();
+        ApplicationPersistedMsgCtx restored = persistedMsgCtxMap.get(clientId);
+        if (restored != null) {
+            restored.advanceToPubRel(packetId);
+        }
         ApplicationPackProcessingCtx processingContext = mainPackProcessingCtxMap.get(clientId);
         if (processingContext == null) {
             if (isDebugEnabled) {
@@ -306,6 +327,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
     @Override
     public void processPubRecNoPubRelDelivery(ClientSessionCtx clientSessionCtx, int packetId) {
         String clientId = clientSessionCtx.getClientId();
+        releaseRestoredPacketId(clientId, packetId);
         ApplicationPackProcessingCtx processingContext = mainPackProcessingCtxMap.get(clientId);
         if (processingContext == null) {
             if (isDebugEnabled) {
@@ -330,6 +352,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
 
     @Override
     public void processPubComp(String clientId, int packetId) {
+        releaseRestoredPacketId(clientId, packetId);
         ApplicationPackProcessingCtx processingContext = mainPackProcessingCtxMap.get(clientId);
         if (processingContext == null) {
             if (isDebugEnabled) {
@@ -404,21 +427,15 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
     }
 
     private void processPersistedMessages(TbQueueControlledOffsetConsumer<TbProtoQueueMsg<PublishMsgProto>> consumer,
-                                          ClientActorStateInfo clientState) {
+                                          ClientActorStateInfo clientState,
+                                          ApplicationPersistedMsgCtx persistedMsgCtx) {
         ClientSessionCtx clientSessionCtx = clientState.getCurrentSessionCtx();
         String clientId = clientSessionCtx.getClientId();
         UUID sessionId = clientSessionCtx.getSessionId();
 
         ApplicationProcessorStats stats = statsManager.createApplicationProcessorStats(clientId);
 
-        ApplicationPersistedMsgCtx persistedMsgCtx = unacknowledgedPersistedMsgCtxService.loadPersistedMsgCtx(clientId);
-        log.info("[{}] Loaded persisted message context: {}", clientId, persistedMsgCtx);
-        persistedMsgCtxMap.put(clientId, persistedMsgCtx);
-
-        // TODO: make consistent with logic for DEVICES
-        clientSessionCtx.getMsgIdSeq().updateMsgIdSequence(persistedMsgCtx.getLastPacketId());
-
-        ApplicationPubRelMsgCtx pubRelMsgCtx = buildPubRelMsgCtx(persistedMsgCtx);
+        ApplicationPubRelMsgCtx pubRelMsgCtx = buildPubRelMsgCtx(persistedMsgCtx, "");
 
         while (isClientSessionActive(sessionId, clientState)) {
             try {
@@ -519,7 +536,7 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         String clientId = clientSessionCtx.getClientId();
         try {
             ApplicationProcessorStats stats = statsManager.createSharedApplicationProcessorStats(clientId, subscription);
-            ApplicationPubRelMsgCtx pubRelMsgCtx = new ApplicationPubRelMsgCtx(Sets.newConcurrentHashSet());
+            ApplicationPubRelMsgCtx pubRelMsgCtx = buildPubRelMsgCtx(persistedMsgCtx, streamName(subscription));
 
             while (isJobActive(job)) {
                 try {
@@ -606,16 +623,25 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         String clientId = clientSessionCtx.getClientId();
         List<PersistedPublishMsg> result = new ArrayList<>(publishProtoMessages.size());
         for (TbProtoQueueMsg<PublishMsgProto> msg : publishProtoMessages) {
+            ApplicationMessageId messageId = new ApplicationMessageId(streamName(subscription), msg.getPartition(), msg.getOffset());
+            if (persistedMsgCtx.getPubRelMsgIds().containsKey(messageId)) {
+                // This QoS 2 record already reached PUBREC. Only its PUBREL is due.
+                continue;
+            }
             MsgExpiryResult msgExpiryResult = MqttPropertiesUtil.getMsgExpiryResult(msg.getHeaders(), currentTs);
             if (msgExpiryResult.isExpired()) {
+                Integer expiredPacket = persistedMsgCtx.getMsgPacketId(messageId);
+                if (expiredPacket != null) {
+                    persistedMsgCtx.releasePacketId(expiredPacket);
+                }
                 if (log.isTraceEnabled()) {
                     log.trace("[{}] Message at offset {} has expired, skipping", clientId, msg.getOffset());
                 }
                 continue;
             }
 
-            var msgPacketId = persistedMsgCtx.getMsgPacketId(msg.getOffset());
-            int packetId = msgPacketId != null ? msgPacketId : clientSessionCtx.getMsgIdSeq().nextMsgId();
+            var msgPacketId = persistedMsgCtx.getMsgPacketId(messageId);
+            int packetId = msgPacketId != null ? msgPacketId : nextUnreservedPacketId(clientSessionCtx, persistedMsgCtx);
             boolean isDup = msgPacketId != null;
             int qos = resolveQos(subscription, msg.getValue().getQos());
             int subscriptionId = subscription == null ? -1 : subscription.getSubscriptionId();
@@ -624,14 +650,36 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
             if (msgExpiryResult.isMsgExpiryIntervalPresent()) {
                 MqttPropertiesUtil.addMsgExpiryIntervalToProps(publishMsg.getProperties(), msgExpiryResult.getMsgExpiryInterval());
             }
-            result.add(new PersistedPublishMsg(publishMsg, msg.getOffset(), subscription != null));
+            result.add(new PersistedPublishMsg(publishMsg, messageId, subscription != null));
         }
         return result;
     }
 
-    private ApplicationPubRelMsgCtx buildPubRelMsgCtx(ApplicationPersistedMsgCtx persistedMsgCtx) {
+    private void releaseRestoredPacketId(String clientId, int packetId) {
+        ApplicationPersistedMsgCtx persisted = persistedMsgCtxMap.get(clientId);
+        if (persisted != null) {
+            persisted.releasePacketId(packetId);
+        }
+    }
+
+    private static String streamName(TopicSharedSubscription subscription) {
+        return subscription == null ? "" : "$share/" + subscription.getShareName() + "/" + subscription.getTopicFilter();
+    }
+
+    private int nextUnreservedPacketId(ClientSessionCtx session, ApplicationPersistedMsgCtx persisted) {
+        for (int attempts = 0; attempts < 65535; attempts++) {
+            int packetId = session.getMsgIdSeq().nextMsgId();
+            if (!persisted.isPacketIdReserved(packetId)) {
+                return packetId;
+            }
+        }
+        throw new IllegalStateException("All application packet IDs are awaiting acknowledgement");
+    }
+
+    private ApplicationPubRelMsgCtx buildPubRelMsgCtx(ApplicationPersistedMsgCtx persistedMsgCtx, String stream) {
         return new ApplicationPubRelMsgCtx(
                 persistedMsgCtx.getPubRelMsgIds().entrySet().stream()
+                        .filter(entry -> entry.getKey().stream().equals(stream))
                         .map(entry -> new PersistedPubRelMsg(entry.getValue(), entry.getKey()))
                         .collect(Collectors.toSet())
         );
@@ -671,6 +719,11 @@ public class ApplicationPersistenceProcessorImpl implements ApplicationPersisten
         if (decision.isCommit()) {
             reportSkippedMessagesIfAny(clientId, result);
             log.debug("[{}] Committing pack", clientId);
+            ApplicationPersistedMsgCtx restored = persistedMsgCtxMap.get(clientId);
+            if (restored != null) {
+                ctx.getPublishPendingMsgMap().keySet().forEach(restored::releasePacketId);
+                ctx.getPubRelPendingMsgMap().keySet().forEach(restored::releasePacketId);
+            }
             ctx.clear();
             consumer.commitSync();
             return true;

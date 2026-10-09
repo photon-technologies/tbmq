@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.persistence.application.processing;
 
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,7 +48,7 @@ class ApplicationMsgAcknowledgeStrategyFactoryTest {
 
     private ApplicationPackProcessingResult resultWithPendingPubRel() {
         ApplicationPackProcessingCtx ctx = new ApplicationPackProcessingCtx(CLIENT_ID);
-        ctx.getPubRelPendingMsgMap().put(1, new PersistedPubRelMsg(1, 0L));
+        ctx.getPubRelPendingMsgMap().put(1, new PersistedPubRelMsg(1, ApplicationMessageId.main(0, 0L)));
         return new ApplicationPackProcessingResult(ctx);
     }
 
