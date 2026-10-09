@@ -28,6 +28,7 @@ import org.thingsboard.mqtt.broker.queue.kafka.settings.PublishMsgKafkaSettings;
 import org.thingsboard.mqtt.broker.queue.util.QueueUtil;
 
 import java.util.Map;
+import java.util.Properties;
 
 @Component
 @RequiredArgsConstructor
@@ -57,7 +58,11 @@ public class KafkaPublishMsgQueueFactory extends AbstractQueueFactory implements
     @Override
     public TbQueueConsumer<TbProtoQueueMsg<PublishMsgProto>> createConsumer(String id) {
         TbKafkaConsumerTemplate.TbKafkaConsumerTemplateBuilder<TbProtoQueueMsg<PublishMsgProto>> consumerBuilder = TbKafkaConsumerTemplate.builder();
-        consumerBuilder.properties(consumerSettings.toProps(publishMsgSettings.getAdditionalConsumerConfig()));
+        // PUBACK can precede this group's first partition assignment. Starting at
+        // latest would skip messages already accepted into the durable publish queue.
+        Properties props = consumerSettings.toProps(publishMsgSettings.getAdditionalConsumerConfig());
+        QueueUtil.overrideProperties("PublishMsgQueue-" + id, props, requiredConsumerProperties);
+        consumerBuilder.properties(props);
         consumerBuilder.topic(publishMsgSettings.getKafkaTopic());
         consumerBuilder.topicConfigs(topicConfigs);
         consumerBuilder.clientId(kafkaPrefix + "msg-all-consumer-" + id);
