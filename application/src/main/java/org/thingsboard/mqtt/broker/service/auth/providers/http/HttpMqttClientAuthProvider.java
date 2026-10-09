@@ -34,7 +34,6 @@ import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType;
 import org.thingsboard.mqtt.broker.common.data.security.http.HttpAuthCallback;
 import org.thingsboard.mqtt.broker.common.data.security.http.HttpMqttAuthProviderConfiguration;
 import org.thingsboard.mqtt.broker.common.data.util.CallbackUtil;
-import org.thingsboard.mqtt.broker.common.data.util.StringUtils;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 import org.thingsboard.mqtt.broker.dao.client.provider.MqttAuthProviderService;
 import org.thingsboard.mqtt.broker.service.auth.AuthorizationRuleService;
@@ -48,6 +47,7 @@ import org.thingsboard.mqtt.broker.util.SslUtil;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -220,9 +220,15 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
     private AuthResponse getAuthResponse(String clientId, ResponseEntity<JsonNode> responseEntity) {
         JsonNode responseBody = responseEntity.getBody();
 
-        if (responseBody == null || responseBody.isNull()) {
-            log.debug("[{}] Empty response body received. Using default configuration.", clientId);
-            return success(configuration.getDefaultClientType(), authRulePatterns);
+        // An HTTP success status is transport success, not an authentication verdict.
+        // Never turn an absent/invalid decision into the configured default grants.
+        if (responseBody == null || !responseBody.isObject()
+                || !responseBody.path("result").isTextual()) {
+            return AuthResponse.failure("HTTP authentication requires an explicit result.");
+        }
+        JsonNode type = responseBody.get("clientType");
+        if (type != null && !type.isNull() && (!type.isTextual() || type.asText().isBlank())) {
+            return AuthResponse.failure("Invalid HTTP authentication client type.");
         }
 
         try {
@@ -244,8 +250,8 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
             return success(finalClientType, authRulePatterns);
 
         } catch (Exception e) {
-            log.warn("[{}] Failed to parse HTTP auth response body: {}", clientId, responseBody, e);
-            return AuthResponse.skip(e.getMessage());
+            log.warn("[{}] Invalid HTTP authentication response", clientId);
+            return AuthResponse.failure("Invalid HTTP authentication response.");
         }
     }
 
@@ -255,38 +261,31 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
 
     private AuthStatus parseStatus(String clientId, String result) {
         if (result == null) {
-            return AuthStatus.SUCCESS;
+            return AuthStatus.FAILURE;
         }
         try {
-            return AuthStatus.valueOf(result.toUpperCase());
+            return AuthStatus.valueOf(result.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Unknown auth result status: {}. Defaulting to SKIPPED.", clientId, result);
-            return AuthStatus.SKIPPED;
+            log.warn("[{}] Invalid HTTP authentication result", clientId);
+            return AuthStatus.FAILURE;
         }
     }
 
     private ClientType parseClientType(String clientId, String type) {
-        if (StringUtils.isBlank(type)) {
+        if (type == null) {
             return configuration.getDefaultClientType();
         }
-        try {
-            return ClientType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Unknown client type in response: {}. Falling back to default.", clientId, type);
-            return configuration.getDefaultClientType();
+        ClientType parsed = ClientType.valueOf(type.toUpperCase(Locale.ROOT));
+        if (parsed != ClientType.DEVICE && parsed != ClientType.APPLICATION) {
+            throw new IllegalArgumentException("Unsupported HTTP authentication client type");
         }
+        return parsed;
     }
 
     private AuthRulePatterns parseAuthRules(String clientId, PubSubAuthorizationRules authRules) {
-        if (authRules != null) {
-            try {
-                return authorizationRuleService.parsePubSubAuthorizationRule(authRules);
-            } catch (Exception e) {
-                log.warn("[{}] Failed to parse auth rules from response: {}", clientId, authRules, e);
-            }
-        }
-        return authRulePatterns;
-
+        // Omitted permissions may use deliberately configured defaults after explicit
+        // success. Invalid supplied permissions must never fall back to those grants.
+        return authRules == null ? authRulePatterns : authorizationRuleService.parsePubSubAuthorizationRule(authRules);
     }
 
 }
