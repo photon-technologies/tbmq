@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.service.security.system;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.passay.CharacterRule;
@@ -186,7 +186,7 @@ public class DefaultSystemSecurityService implements SystemSecurityService {
         JsonNode prohibitDifferentUrl = generalSettings.getJsonValue().get("prohibitDifferentUrl");
 
         if ((prohibitDifferentUrl != null && prohibitDifferentUrl.asBoolean()) || httpServletRequest == null) {
-            baseUrl = generalSettings.getJsonValue().get("baseUrl").asText();
+            baseUrl = generalSettings.getJsonValue().get("baseUrl").asString();
         }
 
         if (StringUtils.isEmpty(baseUrl) && httpServletRequest != null) {

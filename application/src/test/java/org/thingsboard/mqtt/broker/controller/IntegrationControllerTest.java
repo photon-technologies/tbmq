@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.Futures;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.junit.After;
@@ -25,7 +25,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.thingsboard.mqtt.broker.common.data.integration.ClientLifecycleEventType;
 import org.thingsboard.mqtt.broker.common.data.integration.ClientLifecycleEventTypeUtil;
 import org.thingsboard.mqtt.broker.common.data.integration.Integration;
@@ -57,7 +57,7 @@ public class IntegrationControllerTest extends AbstractControllerTest {
 
     private final AbstractServiceTest.IdComparator<Integration> idComparator = new AbstractServiceTest.IdComparator<>();
 
-    @MockBean
+    @MockitoBean
     private IntegrationManagerService integrationManagerService;
 
     @Autowired

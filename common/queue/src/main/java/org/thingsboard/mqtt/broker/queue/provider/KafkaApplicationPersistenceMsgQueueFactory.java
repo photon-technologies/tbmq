@@ -88,6 +88,8 @@ public class KafkaApplicationPersistenceMsgQueueFactory extends AbstractQueueFac
 
         String clientId = "application-shared-msg-consumer-" + consumerId;
         Properties props = consumerSettings.toProps(applicationSharedTopicMsgSettings.getAdditionalConsumerConfig());
+        // A reconnect before the first commit must replay the unacknowledged records.
+        QueueUtil.overrideProperties("ApplicationSharedMsgQueue-" + consumerId, props, super.requiredConsumerProperties);
 
         return createConsumer(topic, consumerGroupId, clientId, props);
     }

@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.integration;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.AfterEach;

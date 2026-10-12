@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.integration.api;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,7 +70,7 @@ class AbstractIntegrationPublishBodyTest {
     void givenUsername_whenConstructBody_thenBodyHasUsername() {
         ObjectNode body = integration.body(message(PublishMsgProto.newBuilder().setUsername("alice")));
 
-        assertThat(body.get("username").asText()).isEqualTo("alice");
+        assertThat(body.get("username").asString()).isEqualTo("alice");
     }
 
     @Test
@@ -92,9 +92,9 @@ class AbstractIntegrationPublishBodyTest {
         ObjectNode body = integration.body(message(PublishMsgProto.newBuilder().setUsername("alice")), false);
 
         assertThat(body.has("payload")).isFalse();
-        assertThat(body.get("clientId").asText()).isEqualTo("c1");
-        assertThat(body.get("topicName").asText()).isEqualTo("t");
-        assertThat(body.get("username").asText()).isEqualTo("alice");
+        assertThat(body.get("clientId").asString()).isEqualTo("c1");
+        assertThat(body.get("topicName").asString()).isEqualTo("t");
+        assertThat(body.get("username").asString()).isEqualTo("alice");
     }
 
     @Test

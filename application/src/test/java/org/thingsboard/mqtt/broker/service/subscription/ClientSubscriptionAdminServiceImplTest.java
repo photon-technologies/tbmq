@@ -19,8 +19,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.thingsboard.mqtt.broker.actors.client.messages.SubscribeCommandMsg;
@@ -60,18 +60,18 @@ import static org.mockito.Mockito.when;
 @ContextConfiguration(classes = ClientSubscriptionAdminServiceImpl.class)
 public class ClientSubscriptionAdminServiceImplTest {
 
-    @MockBean
+    @MockitoBean
     ClientSessionCache clientSessionCache;
-    @MockBean
+    @MockitoBean
     ClientSubscriptionCache clientSubscriptionCache;
-    @MockBean
+    @MockitoBean
     ClientMqttActorManager clientMqttActorManager;
-    @MockBean
+    @MockitoBean
     DefaultTopicValidationService topicValidationService;
-    @MockBean
+    @MockitoBean
     ApplicationSharedSubscriptionService applicationSharedSubscriptionService;
 
-    @SpyBean
+    @MockitoSpyBean
     ClientSubscriptionAdminServiceImpl clientSubscriptionAdminService;
 
     @Before

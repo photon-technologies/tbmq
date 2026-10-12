@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,6 +29,7 @@ import org.thingsboard.mqtt.broker.common.data.BrokerConstants;
 import org.thingsboard.mqtt.broker.common.data.ClientType;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.BasicMqttCredentials;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.ClientCredentialsQuery;
+import org.thingsboard.mqtt.broker.common.data.client.credentials.ClientTypeSslMqttCredentials;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.ScramAlgorithm;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.ScramMqttCredentials;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.SslMqttCredentials;
@@ -41,6 +42,7 @@ import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 import org.thingsboard.mqtt.broker.common.util.MqttClientCredentialsUtil;
 import org.thingsboard.mqtt.broker.dao.DaoSqlTest;
 import org.thingsboard.mqtt.broker.dao.client.MqttClientCredentialsService;
+import org.thingsboard.mqtt.broker.dao.client.credentials.SslCredentialsCacheValue;
 import org.thingsboard.mqtt.broker.dao.util.protocol.ProtocolUtil;
 import org.thingsboard.mqtt.broker.exception.DataValidationException;
 
@@ -87,7 +89,27 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testSaveCredentialsCheckCache() throws JsonProcessingException {
+    public void testSslCredentialWrapperSurvivesConfiguredCacheRoundTrip() {
+        SslMqttCredentials ssl = SslMqttCredentials.newInstance("device-cn", "device", List.of("device/+/state"));
+        ssl.setClientIdPattern("device-[0-9]+");
+        ssl.setClientIdIsRegex(true);
+        SslCredentialsCacheValue original = new SslCredentialsCacheValue(List.of(
+                new ClientTypeSslMqttCredentials(ClientType.DEVICE, ssl, "غرفة")));
+        ClientCredentialsType key = ClientCredentialsType.X_509;
+        try {
+            sslRegexBasedCredentialsCache.put(key, original);
+            SslCredentialsCacheValue restored = sslRegexBasedCredentialsCache.get(key, SslCredentialsCacheValue.class);
+            Assert.assertNotNull(restored);
+            Assert.assertEquals(original, restored);
+            Assert.assertTrue(restored.getCredentials().getFirst().getSslMqttCredentials().matchesClientId("device-42"));
+            Assert.assertFalse(restored.getCredentials().getFirst().getSslMqttCredentials().matchesClientId("other-42"));
+        } finally {
+            sslRegexBasedCredentialsCache.evict(key);
+        }
+    }
+
+    @Test
+    public void testSaveCredentialsCheckCache() throws JacksonException {
         String credentialsId = ProtocolUtil.clientIdCredentialsId("cacheClient");
 
         checkCacheNonNullAndEvict(credentialsId);
@@ -107,7 +129,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testSaveCredentialsCheckCacheAfterAnotherSave() throws JsonProcessingException {
+    public void testSaveCredentialsCheckCacheAfterAnotherSave() throws JacksonException {
         String credentialsId = ProtocolUtil.clientIdCredentialsId("cacheClient");
 
         checkCacheNonNullAndEvict(credentialsId);
@@ -129,7 +151,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testSaveTwoCredentialsCheckCacheAfterFetchOneOfThem() throws JsonProcessingException {
+    public void testSaveTwoCredentialsCheckCacheAfterFetchOneOfThem() throws JacksonException {
         String credentialsId1 = ProtocolUtil.clientIdCredentialsId("cacheClient1");
         String credentialsId2 = ProtocolUtil.clientIdCredentialsId("cacheClient2");
 
@@ -156,7 +178,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testCreateValidCredentials() throws JsonProcessingException {
+    public void testCreateValidCredentials() throws JacksonException {
         mqttClientCredentialsService.saveCredentials(validMqttClientCredentials("test", "client", "user", null));
     }
 
@@ -166,12 +188,12 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test(expected = DataValidationException.class)
-    public void testCreateCredentialsWithSystemWebSocketCredentialsName() throws JsonProcessingException {
+    public void testCreateCredentialsWithSystemWebSocketCredentialsName() throws JacksonException {
         mqttClientCredentialsService.saveCredentials(validMqttClientCredentials(BrokerConstants.WS_SYSTEM_MQTT_CLIENT_CREDENTIALS_NAME, "client", "user", null));
     }
 
     @Test(expected = DataValidationException.class)
-    public void testUpdateSystemWebSocketCredentials() throws JsonProcessingException {
+    public void testUpdateSystemWebSocketCredentials() throws JacksonException {
         MqttClientCredentials systemMqttClientCredentials = mqttClientCredentialsService.saveSystemWebSocketCredentials();
 
         MqttClientCredentials mqttClientCredentials = validMqttClientCredentials("anotherName", "client", "user", "password");
@@ -181,7 +203,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test(expected = DataValidationException.class)
-    public void testCreateCredentialsWithEmptyName() throws JsonProcessingException {
+    public void testCreateCredentialsWithEmptyName() throws JacksonException {
         mqttClientCredentialsService.saveCredentials(validMqttClientCredentials(null, "client", "user", null));
     }
 
@@ -220,7 +242,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
 
 
     @Test(expected = DataValidationException.class)
-    public void testCreateDuplicateCredentials() throws JsonProcessingException {
+    public void testCreateDuplicateCredentials() throws JacksonException {
         MqttClientCredentials clientCredentials = mqttClientCredentialsService.saveCredentials(validMqttClientCredentials("test", "client", "user", null));
         try {
             mqttClientCredentialsService.saveCredentials(validMqttClientCredentials("test", "client", "user", "password"));
@@ -230,7 +252,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMatchingMixed() throws JsonProcessingException {
+    public void testFindMatchingMixed() throws JacksonException {
         MqttClientCredentials client1Credentials, client2Credentials, client3Credentials;
         client1Credentials = mqttClientCredentialsService.saveCredentials(
                 validMqttClientCredentials("test1", "client1", "test1", "password1"));
@@ -251,7 +273,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMatchingByUserName() throws JsonProcessingException {
+    public void testFindMatchingByUserName() throws JacksonException {
         MqttClientCredentials client1Credentials, client2Credentials;
         client1Credentials = mqttClientCredentialsService.saveCredentials(
                 validMqttClientCredentials("test1", null, "user1", null));
@@ -269,7 +291,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMatchingByClientId() throws JsonProcessingException {
+    public void testFindMatchingByClientId() throws JacksonException {
         MqttClientCredentials client1Credentials, client2Credentials;
         client1Credentials = mqttClientCredentialsService.saveCredentials(
                 validMqttClientCredentials("test1", "client1", null, null));
@@ -287,7 +309,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentials() throws JsonProcessingException {
+    public void testFindMqttClientCredentials() throws JacksonException {
         List<ShortMqttClientCredentials> mqttClientCredentialsList = new ArrayList<>();
         for (int i = 0; i < 178; i++) {
             MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(
@@ -325,7 +347,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQueryWithEmptyLists() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQueryWithEmptyLists() throws JacksonException {
         List<ShortMqttClientCredentials> mqttClientCredentialsList = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(
@@ -366,7 +388,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQuery() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQuery() throws JacksonException {
         for (int i = 0; i < 5; i++) {
             mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         }
@@ -398,7 +420,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQueryWithUsername() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQueryWithUsername() throws JacksonException {
         String searchString = "zzzz";
 
         for (int i = 0; i < 5; i++) {
@@ -420,7 +442,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQueryWithClientId() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQueryWithClientId() throws JacksonException {
         for (int i = 0; i < 5; i++) {
             mqttClientCredentialsService.saveCredentials(validMqttClientCredentialsWithNulls(null, "zzzzxxxxcccc" + i, null, null));
         }
@@ -440,7 +462,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQueryWithCertificateCn() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQueryWithCertificateCn() throws JacksonException {
         String searchString = "zzzz";
 
         for (int i = 0; i < 5; i++) {
@@ -462,7 +484,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testFindMqttClientCredentialsByQueryWithCertificateCnAndUsername() throws JsonProcessingException {
+    public void testFindMqttClientCredentialsByQueryWithCertificateCnAndUsername() throws JacksonException {
         String searchString = "zzzz";
 
         for (int i = 0; i < 5; i++) {
@@ -485,7 +507,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
 
     // Commented out to allow independent testing without running it in every build
 //    @Test
-    public void testPerformanceOfGetCredentialsV2() throws JsonProcessingException {
+    public void testPerformanceOfGetCredentialsV2() throws JacksonException {
         List<MqttClientCredentials> credentials = saveRandomCredentials();
 
         ClientCredentialsQuery query = new ClientCredentialsQuery(new PageLink(10), null, null, null, "clientIdPerf", null);
@@ -511,7 +533,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         Assert.assertEquals(expected, pageData.getData().size());
     }
 
-    private List<MqttClientCredentials> saveRandomCredentials() throws JsonProcessingException {
+    private List<MqttClientCredentials> saveRandomCredentials() throws JacksonException {
         int size = 100_000;
         List<MqttClientCredentials> credentialsList = new ArrayList<>(size + 1);
         for (int i = 0; i < size; i++) {
@@ -523,7 +545,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedBasicCredentials_whenSaveOtherCredentials_thenCachedDataPresent() throws JsonProcessingException {
+    public void givenCachedBasicCredentials_whenSaveOtherCredentials_thenCachedDataPresent() throws JacksonException {
         String cacheKey = RandomStringUtils.randomAlphabetic(10);
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         basicCredentialsPasswordCache.put(cacheKey, savedCredentials);
@@ -535,7 +557,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedBasicCredentials_whenUpdateSslCredentials_thenCachedDataPresent() throws JsonProcessingException {
+    public void givenCachedBasicCredentials_whenUpdateSslCredentials_thenCachedDataPresent() throws JacksonException {
         String cacheKey = RandomStringUtils.randomAlphabetic(10);
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         basicCredentialsPasswordCache.put(cacheKey, savedCredentials);
@@ -547,7 +569,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedBasicCredentials_whenUpdateBasicCredentials_thenCachedDataRemoved() throws JsonProcessingException {
+    public void givenCachedBasicCredentials_whenUpdateBasicCredentials_thenCachedDataRemoved() throws JacksonException {
         String cacheKey = RandomStringUtils.randomAlphabetic(10);
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         basicCredentialsPasswordCache.put(cacheKey, savedCredentials);
@@ -567,7 +589,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedBasicCredentials_whenDeleteSslCredentials_thenCachedDataPresent() throws JsonProcessingException {
+    public void givenCachedBasicCredentials_whenDeleteSslCredentials_thenCachedDataPresent() throws JacksonException {
         String cacheKey = RandomStringUtils.randomAlphabetic(10);
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         basicCredentialsPasswordCache.put(cacheKey, savedCredentials);
@@ -579,7 +601,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedBasicCredentials_whenDeleteBasicCredentials_thenCachedDataRemoved() throws JsonProcessingException {
+    public void givenCachedBasicCredentials_whenDeleteBasicCredentials_thenCachedDataRemoved() throws JacksonException {
         String cacheKey = RandomStringUtils.randomAlphabetic(10);
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttBasicClientCredentials(ClientType.DEVICE));
         basicCredentialsPasswordCache.put(cacheKey, savedCredentials);
@@ -601,7 +623,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
      */
 
     @Test
-    public void givenCachedSslRegexCredentials_whenSaveBasicCredentials_thenCacheDataPresent() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenSaveBasicCredentials_thenCacheDataPresent() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
         sslRegexBasedCredentialsCache.put(cacheKey, savedCredentials);
@@ -611,7 +633,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenSaveSslCredentials_thenCacheDataRemoved() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenSaveSslCredentials_thenCacheDataRemoved() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
         sslRegexBasedCredentialsCache.put(cacheKey, savedCredentials);
@@ -622,7 +644,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenDeleteBasicCredentials_thenCacheDataPresent() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenDeleteBasicCredentials_thenCacheDataPresent() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
         sslRegexBasedCredentialsCache.put(cacheKey, savedCredentials);
@@ -633,7 +655,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenDeleteSslCredentials_thenCacheDataRemoved() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenDeleteSslCredentials_thenCacheDataRemoved() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
         sslRegexBasedCredentialsCache.put(cacheKey, savedCredentials);
@@ -644,7 +666,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenDeleteDifferentSslCredentials_thenCacheDataRemoved() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenDeleteDifferentSslCredentials_thenCacheDataRemoved() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
 
@@ -657,7 +679,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenUpdateDifferentSslCredentials_thenCacheDataRemoved() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenUpdateDifferentSslCredentials_thenCacheDataRemoved() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
 
@@ -671,7 +693,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void givenCachedSslRegexCredentials_whenUpdateSslCredentials_thenCacheDataRemoved() throws JsonProcessingException {
+    public void givenCachedSslRegexCredentials_whenUpdateSslCredentials_thenCacheDataRemoved() throws JacksonException {
         ClientCredentialsType cacheKey = ClientCredentialsType.X_509;
         MqttClientCredentials savedCredentials = mqttClientCredentialsService.saveCredentials(validMqttSslClientCredentials(ClientType.DEVICE));
 
@@ -689,7 +711,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         Assert.assertEquals(expected, pageData.getData().size());
     }
 
-    private MqttClientCredentials validMqttClientCredentialsWithNulls(String credentialsName, String clientId, String username, String password) throws JsonProcessingException {
+    private MqttClientCredentials validMqttClientCredentialsWithNulls(String credentialsName, String clientId, String username, String password) throws JacksonException {
         if (credentialsName == null) {
             credentialsName = RandomStringUtils.randomAlphabetic(5);
         }
@@ -710,7 +732,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         return clientCredentials;
     }
 
-    private MqttClientCredentials validMqttClientCredentials(String credentialsName, String clientId, String username, String password) throws JsonProcessingException {
+    private MqttClientCredentials validMqttClientCredentials(String credentialsName, String clientId, String username, String password) throws JacksonException {
         MqttClientCredentials clientCredentials = new MqttClientCredentials();
         clientCredentials.setName(credentialsName);
         clientCredentials.setCredentialsType(ClientCredentialsType.MQTT_BASIC);
@@ -719,7 +741,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         return clientCredentials;
     }
 
-    private MqttClientCredentials validMqttBasicClientCredentials(ClientType clientType) throws JsonProcessingException {
+    private MqttClientCredentials validMqttBasicClientCredentials(ClientType clientType) throws JacksonException {
         MqttClientCredentials clientCredentials = new MqttClientCredentials();
         clientCredentials.setName(RandomStringUtils.randomAlphabetic(5));
         clientCredentials.setCredentialsType(ClientCredentialsType.MQTT_BASIC);
@@ -733,7 +755,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         return clientCredentials;
     }
 
-    private MqttClientCredentials validMqttSslClientCredentials(ClientType clientType) throws JsonProcessingException {
+    private MqttClientCredentials validMqttSslClientCredentials(ClientType clientType) throws JacksonException {
         MqttClientCredentials clientCredentials = new MqttClientCredentials();
         clientCredentials.setName(RandomStringUtils.randomAlphabetic(5));
         clientCredentials.setCredentialsType(ClientCredentialsType.X_509);
@@ -746,7 +768,7 @@ public class MqttClientCredentialsServiceTest extends AbstractServiceTest {
         return clientCredentials;
     }
 
-    private MqttClientCredentials validMqttSslClientCredentials(String certificateCn) throws JsonProcessingException {
+    private MqttClientCredentials validMqttSslClientCredentials(String certificateCn) throws JacksonException {
         MqttClientCredentials clientCredentials = new MqttClientCredentials();
         clientCredentials.setName(RandomStringUtils.randomAlphabetic(5));
         clientCredentials.setCredentialsType(ClientCredentialsType.X_509);

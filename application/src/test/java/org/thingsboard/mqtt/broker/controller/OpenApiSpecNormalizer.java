@@ -15,13 +15,14 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.core.util.Separators;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.core.util.Separators;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.ObjectWriter;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Turns the spec served at /v3/api-docs into the committed api/openapi.json:
@@ -30,21 +31,21 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 final class OpenApiSpecNormalizer {
 
     private static final String SNAPSHOT_SUFFIX = "-SNAPSHOT";
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private static final DefaultIndenter LF_INDENTER = new DefaultIndenter("  ", "\n");
-    private static final ObjectWriter WRITER = MAPPER.writer(new DefaultPrettyPrinter()
+    private static final ObjectWriter WRITER = MAPPER.writer().with(new DefaultPrettyPrinter()
             .withObjectIndenter(LF_INDENTER)
             .withArrayIndenter(LF_INDENTER)
-            .withSeparators(Separators.createDefaultInstance().withObjectFieldValueSpacing(Separators.Spacing.AFTER)));
+            .withSeparators(Separators.createDefaultInstance().withObjectNameValueSpacing(Separators.Spacing.AFTER)));
 
     private OpenApiSpecNormalizer() {
     }
 
-    static String normalize(String rawSpec) throws JsonProcessingException {
+    static String normalize(String rawSpec) throws JacksonException {
         ObjectNode spec = (ObjectNode) MAPPER.readTree(rawSpec);
         spec.remove("servers");
         if (spec.get("info") instanceof ObjectNode info) {
-            String version = info.path("version").asText();
+            String version = info.path("version").asString();
             if (version.endsWith(SNAPSHOT_SUFFIX)) {
                 info.put("version", version.substring(0, version.length() - SNAPSHOT_SUFFIX.length()));
             }

@@ -20,6 +20,7 @@ import org.thingsboard.mqtt.broker.service.security.model.SecurityUser;
 import org.thingsboard.mqtt.broker.service.security.model.token.RawAccessJwtToken;
 
 import java.io.Serial;
+import java.util.List;
 
 public abstract class AbstractJwtAuthenticationToken extends AbstractAuthenticationToken {
 
@@ -30,7 +31,7 @@ public abstract class AbstractJwtAuthenticationToken extends AbstractAuthenticat
     private SecurityUser securityUser;
 
     public AbstractJwtAuthenticationToken(RawAccessJwtToken unsafeToken) {
-        super(null);
+        super(List.of());
         this.rawAccessToken = unsafeToken;
         this.setAuthenticated(false);
     }

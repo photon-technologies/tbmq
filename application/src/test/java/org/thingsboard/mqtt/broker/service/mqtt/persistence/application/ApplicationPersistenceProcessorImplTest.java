@@ -25,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.thingsboard.mqtt.broker.actors.client.state.ClientActorStateInfo;
 import org.thingsboard.mqtt.broker.actors.client.state.SessionState;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
+import org.thingsboard.mqtt.broker.session.MsgIdSequence;
 import org.thingsboard.mqtt.broker.gen.queue.PublishMsgProto;
 import org.thingsboard.mqtt.broker.queue.TbQueueAdmin;
 import org.thingsboard.mqtt.broker.queue.TbQueueControlledOffsetConsumer;
@@ -121,6 +123,59 @@ class ApplicationPersistenceProcessorImplTest {
         ReflectionTestUtils.setField(processor, "pollDuration", 100L);
         ReflectionTestUtils.setField(processor, "packProcessingTimeout", 2000L);
         ReflectionTestUtils.setField(processor, "validateSharedTopicFilter", true);
+    }
+
+    @Test
+    void restoredIdsMustBeScopedByStreamAndPartitionAndReservedAcrossWrap() {
+        String client = "restore-client";
+        ClientSessionCtx session = clientSessionCtx(client);
+        when(session.getMsgIdSeq()).thenReturn(new MsgIdSequence());
+        TopicSharedSubscription one = new TopicSharedSubscription("sensor/one", "group", 1);
+        TopicSharedSubscription two = new TopicSharedSubscription("sensor/two", "group", 1);
+        ApplicationMessageId a = new ApplicationMessageId("$share/group/sensor/one", 0, 0);
+        ApplicationMessageId b = new ApplicationMessageId("$share/group/sensor/two", 0, 0);
+        ApplicationPersistedMsgCtx restored = new ApplicationPersistedMsgCtx(Map.of(a, 65535, b, 1), Map.of());
+        session.getMsgIdSeq().updateMsgIdSequence(restored.getLastPacketId());
+        List<TbProtoQueueMsg<PublishMsgProto>> records = List.of(new TbProtoQueueMsg<>(client,
+                PublishMsgProto.newBuilder().setTopicName("sensor/one").setQos(1).build(),
+                new DefaultTbQueueMsgHeaders(), 0, 0));
+        List<PersistedPublishMsg> first = ReflectionTestUtils.invokeMethod(processor,
+                "buildPublishMessagesToDeliver", session, restored, records, one);
+        List<PersistedPublishMsg> second = ReflectionTestUtils.invokeMethod(processor,
+                "buildPublishMessagesToDeliver", session, restored, records, two);
+        List<PersistedPublishMsg> fresh = ReflectionTestUtils.invokeMethod(processor,
+                "buildPublishMessagesToDeliver", session, restored, records, new TopicSharedSubscription("new", "group", 1));
+        assertThat(first.get(0).getPacketId()).isEqualTo(65535);
+        assertThat(first.get(0).getPublishMsg().isDup()).isTrue();
+        assertThat(second.get(0).getPacketId()).isEqualTo(1);
+        assertThat(fresh.get(0).getPacketId()).isEqualTo(2);
+        assertThat(fresh.get(0).getPublishMsg().isDup()).isFalse();
+    }
+
+    @Test
+    void restoredPubrelMustNotRepublishItsKafkaRecord() {
+        ApplicationMessageId key = new ApplicationMessageId("$share/group/sensor/one", 0, 0);
+        ApplicationPersistedMsgCtx restored = new ApplicationPersistedMsgCtx(Map.of(), Map.of(key, 12));
+        ClientSessionCtx session = clientSessionCtx("restore-client");
+        List<TbProtoQueueMsg<PublishMsgProto>> records = List.of(new TbProtoQueueMsg<>("restore-client",
+                PublishMsgProto.newBuilder().setTopicName("sensor/one").setQos(2).build(),
+                new DefaultTbQueueMsgHeaders(), 0, 0));
+        List<PersistedPublishMsg> publishes = ReflectionTestUtils.invokeMethod(processor,
+                "buildPublishMessagesToDeliver", session, restored, records,
+                new TopicSharedSubscription("sensor/one", "group", 2));
+        assertThat(publishes).isEmpty();
+        assertThat(restored.isPacketIdReserved(12)).isTrue();
+    }
+
+    @Test
+    void restoredPubrelMustStayInItsOriginalSharedStream() {
+        ApplicationMessageId a = new ApplicationMessageId("$share/group/one", 1, 42);
+        ApplicationMessageId b = new ApplicationMessageId("$share/group/two", 0, 42);
+        ApplicationPersistedMsgCtx restored = new ApplicationPersistedMsgCtx(Map.of(), Map.of(a, 10, b, 11));
+        ApplicationPubRelMsgCtx one = ReflectionTestUtils.invokeMethod(processor, "buildPubRelMsgCtx", restored, "$share/group/one");
+        ApplicationPubRelMsgCtx main = ReflectionTestUtils.invokeMethod(processor, "buildPubRelMsgCtx", restored, "");
+        assertThat(one.getPubRelMessagesToDeliver()).containsExactly(new PersistedPubRelMsg(10, a));
+        assertThat(main.nothingToDeliver()).isTrue();
     }
 
     @Test
@@ -506,7 +561,7 @@ class ApplicationPersistenceProcessorImplTest {
 
         // A single never-acked PUBREL keeps the pack pending across every retry.
         ApplicationPubRelMsgCtx pubRelMsgCtx = new ApplicationPubRelMsgCtx(Sets.newConcurrentHashSet());
-        pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(1, 0L));
+        pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(1, ApplicationMessageId.main(0, 0L)));
 
         invokeProcessMainPack(pubRelMsgCtx, Collections.emptyList(), clientSessionCtx("appClient", sessionId),
                 mock(ApplicationPersistedMsgCtx.class), consumer, mock(ApplicationProcessorStats.class),
@@ -540,11 +595,13 @@ class ApplicationPersistenceProcessorImplTest {
                 new TbProtoQueueMsg<>("appClient",
                         PublishMsgProto.newBuilder().setTopicName("test/topic").setQos(1).build(),
                         new DefaultTbQueueMsgHeaders(), 0, 0L));
-        ApplicationPersistedMsgCtx persistedMsgCtx = new ApplicationPersistedMsgCtx(Map.of(0L, 1), Collections.emptyMap());
+        ApplicationPersistedMsgCtx persistedMsgCtx = new ApplicationPersistedMsgCtx(Map.of(ApplicationMessageId.main(0, 0L), 1), Collections.emptyMap());
 
+        ReflectionTestUtils.setField(processor, "persistedMsgCtxMap", new ConcurrentHashMap<>(Map.of("appClient", persistedMsgCtx)));
         invokeProcessMainPack(new ApplicationPubRelMsgCtx(Sets.newConcurrentHashSet()), messages, clientSessionCtx,
                 persistedMsgCtx, consumer, mock(ApplicationProcessorStats.class),
                 clientState);
+        assertThat(persistedMsgCtx.isPacketIdReserved(1)).isFalse();
 
         // The un-acked PUBLISH must be counted exactly once as dropped, on the real give-up commit path.
         verify(consumer, atLeastOnce()).commitSync();
@@ -565,7 +622,7 @@ class ApplicationPersistenceProcessorImplTest {
         ClientActorStateInfo clientState = activeClientState("appClient", sessionId);
 
         ApplicationPubRelMsgCtx pubRelMsgCtx = new ApplicationPubRelMsgCtx(Sets.newConcurrentHashSet());
-        pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(1, 0L));
+        pubRelMsgCtx.addPubRelMsg(new PersistedPubRelMsg(1, ApplicationMessageId.main(0, 0L)));
 
         invokeProcessMainPack(pubRelMsgCtx, Collections.emptyList(), clientSessionCtx("appClient", sessionId),
                 mock(ApplicationPersistedMsgCtx.class), consumer, mock(ApplicationProcessorStats.class),
@@ -634,10 +691,10 @@ class ApplicationPersistenceProcessorImplTest {
     private ApplicationPackProcessingResult resultWith(int publishPending, int pubRelPending) {
         ApplicationPackProcessingCtx ctx = new ApplicationPackProcessingCtx("appClient");
         for (int i = 1; i <= publishPending; i++) {
-            ctx.getPublishPendingMsgMap().put(i, new PersistedPublishMsg(mock(PublishMsg.class), i, false));
+            ctx.getPublishPendingMsgMap().put(i, new PersistedPublishMsg(mock(PublishMsg.class), ApplicationMessageId.main(0, i), false));
         }
         for (int i = 1; i <= pubRelPending; i++) {
-            ctx.getPubRelPendingMsgMap().put(1000 + i, new PersistedPubRelMsg(1000 + i, i));
+            ctx.getPubRelPendingMsgMap().put(1000 + i, new PersistedPubRelMsg(1000 + i, ApplicationMessageId.main(0, i)));
         }
         return new ApplicationPackProcessingResult(ctx);
     }

@@ -18,7 +18,7 @@ package org.thingsboard.mqtt.broker.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -54,7 +54,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@Order(SecurityProperties.BASIC_AUTH_ORDER)
+@Order(SecurityFilterProperties.BASIC_AUTH_ORDER)
 public class SecurityConfiguration {
 
     public static final String JWT_TOKEN_HEADER_PARAM = "X-Authorization";

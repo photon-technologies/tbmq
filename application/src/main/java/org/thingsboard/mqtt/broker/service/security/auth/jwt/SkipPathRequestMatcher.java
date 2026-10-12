@@ -16,7 +16,7 @@
 package org.thingsboard.mqtt.broker.service.security.auth.jwt;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -30,9 +30,9 @@ public class SkipPathRequestMatcher implements RequestMatcher {
 
     public SkipPathRequestMatcher(List<String> pathsToSkip, String processingPath) {
         Assert.notNull(pathsToSkip, "List of URLs to skip is null.");
-        List<RequestMatcher> m = pathsToSkip.stream().map(AntPathRequestMatcher::new).collect(Collectors.toList());
+        List<RequestMatcher> m = pathsToSkip.stream().map(PathPatternRequestMatcher.withDefaults()::matcher).collect(Collectors.toList());
         pathsToSkipMatchers = new OrRequestMatcher(m);
-        processingMatcher = new AntPathRequestMatcher(processingPath);
+        processingMatcher = PathPatternRequestMatcher.withDefaults().matcher(processingPath);
     }
 
     @Override

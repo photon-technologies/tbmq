@@ -16,6 +16,7 @@
 package org.thingsboard.mqtt.broker.common.data;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.netty.handler.codec.mqtt.MqttProperties;
@@ -50,6 +51,7 @@ public class DevicePublishMsg {
     private MqttProperties properties;
     private boolean isRetained;
 
+    @JsonCreator
     public DevicePublishMsg() {
         properties = new MqttProperties();
     }

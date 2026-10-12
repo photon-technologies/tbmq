@@ -15,44 +15,61 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.persistence.application.processing;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import lombok.Getter;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
-@Data
-@RequiredArgsConstructor
+@Getter
 public class ApplicationPersistedMsgCtx {
+    private final Map<ApplicationMessageId, Integer> publishMsgIds;
+    private final Map<ApplicationMessageId, Integer> pubRelMsgIds;
+    private final Map<Integer, ApplicationMessageId> reservedPacketIds = new ConcurrentHashMap<>();
 
-    private final Map<Long, Integer> publishMsgIds;
-    private final Map<Long, Integer> pubRelMsgIds;
-
-    public ApplicationPersistedMsgCtx() {
-        this.publishMsgIds = Collections.emptyMap();
-        this.pubRelMsgIds = Collections.emptyMap();
+    public ApplicationPersistedMsgCtx(Map<ApplicationMessageId, Integer> publishes,
+                                     Map<ApplicationMessageId, Integer> pubrels) {
+        this.publishMsgIds = new ConcurrentHashMap<>(publishes);
+        this.pubRelMsgIds = new ConcurrentHashMap<>(pubrels);
+        Stream.concat(publishes.entrySet().stream(), pubrels.entrySet().stream()).forEach(entry -> {
+            int packetId = entry.getValue();
+            if (packetId < 1 || packetId > 65535 || reservedPacketIds.putIfAbsent(packetId, entry.getKey()) != null) {
+                throw new IllegalStateException("Invalid or multiply assigned persisted packet ID");
+            }
+        });
     }
 
-    public Integer getMsgPacketId(Long msgOffset) {
-        Integer msgPacketId = null;
-        if (!publishMsgIds.isEmpty()) {
-            msgPacketId = publishMsgIds.get(msgOffset);
-            if (msgPacketId == null) {
-                publishMsgIds.clear();
-            }
+    public ApplicationPersistedMsgCtx() {
+        this(Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    public Integer getMsgPacketId(ApplicationMessageId messageId) {
+        // A miss on another stream must not erase this stream's pending packets.
+        return publishMsgIds.get(messageId);
+    }
+
+    public boolean isPacketIdReserved(int packetId) {
+        return reservedPacketIds.containsKey(packetId);
+    }
+
+    public void advanceToPubRel(int packetId) {
+        ApplicationMessageId key = reservedPacketIds.get(packetId);
+        if (key != null && publishMsgIds.remove(key, packetId)) {
+            pubRelMsgIds.put(key, packetId);
         }
-        return msgPacketId;
+    }
+
+    public void releasePacketId(int packetId) {
+        ApplicationMessageId key = reservedPacketIds.remove(packetId);
+        if (key != null) {
+            publishMsgIds.remove(key, packetId);
+            pubRelMsgIds.remove(key, packetId);
+        }
     }
 
     public int getLastPacketId() {
-        long lastPublishOffset = publishMsgIds.keySet().stream().max(Long::compareTo).orElse(-1L);
-        if (lastPublishOffset != -1) {
-            return publishMsgIds.get(lastPublishOffset);
-        }
-        long lastPubRelOffset = pubRelMsgIds.keySet().stream().max(Long::compareTo).orElse(-1L);
-        if (lastPubRelOffset != -1) {
-            return pubRelMsgIds.get(lastPubRelOffset);
-        }
-        return 0;
+        return reservedPacketIds.keySet().stream().max(Integer::compareTo).orElse(0);
     }
 }

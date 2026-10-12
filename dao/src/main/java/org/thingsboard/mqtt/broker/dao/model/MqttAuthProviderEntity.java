@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.dao.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -25,8 +25,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLJsonPGObjectJsonbType;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProvider;
 import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderConfiguration;
 import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType;
@@ -49,7 +49,7 @@ public class MqttAuthProviderEntity extends BaseSqlEntity<MqttAuthProvider> impl
     private MqttAuthProviderType type;
 
     @Convert(converter = JsonConverter.class)
-    @JdbcType(PostgreSQLJsonPGObjectJsonbType.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = ModelConstants.MQTT_AUTH_PROVIDER_CONFIGURATION_PROPERTY, columnDefinition = "jsonb")
     private JsonNode configuration;
 

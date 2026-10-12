@@ -67,8 +67,24 @@ public class TestUtils {
     }
 
     public static void disconnectAndCloseClient(org.eclipse.paho.mqttv5.client.MqttClient client) throws MqttException {
-        client.disconnect();
-        client.close();
+        Throwable originalFailure = null;
+        try {
+            if (client.isConnected()) {
+                client.disconnect();
+            }
+        } catch (MqttException | RuntimeException | Error failure) {
+            originalFailure = failure;
+            throw failure;
+        } finally {
+            try {
+                client.close();
+            } catch (MqttException closeFailure) {
+                if (originalFailure == null) {
+                    throw closeFailure;
+                }
+                originalFailure.addSuppressed(closeFailure);
+            }
+        }
     }
 
     public static String[] getTopicNames(Collection<TopicSubscription> topicSubscriptions) {

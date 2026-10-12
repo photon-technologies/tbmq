@@ -31,6 +31,7 @@ import org.thingsboard.mqtt.broker.queue.kafka.settings.ClientSessionEventRespon
 import org.thingsboard.mqtt.broker.queue.util.QueueUtil;
 
 import java.util.Map;
+import java.util.Properties;
 
 @Slf4j
 @Component
@@ -62,7 +63,11 @@ public class KafkaClientSessionEventQueueFactory extends AbstractQueueFactory im
     @Override
     public TbQueueControlledOffsetConsumer<TbProtoQueueMsg<ClientSessionEventProto>> createEventConsumer(String consumerName) {
         TbKafkaConsumerTemplate.TbKafkaConsumerTemplateBuilder<TbProtoQueueMsg<ClientSessionEventProto>> consumerBuilder = TbKafkaConsumerTemplate.builder();
-        consumerBuilder.properties(consumerSettings.toProps(clientSessionEventSettings.getAdditionalConsumerConfig()));
+        // Requests and responses can arrive before a new group has its first assignment.
+        // Resume committed offsets normally, but never skip pending records on a cold start.
+        Properties props = consumerSettings.toProps(clientSessionEventSettings.getAdditionalConsumerConfig());
+        QueueUtil.overrideProperties("ClientSessionEvent", props, requiredConsumerProperties);
+        consumerBuilder.properties(props);
         consumerBuilder.topic(clientSessionEventSettings.getKafkaTopic());
         consumerBuilder.topicConfigs(clientSessionEventTopicConfigs);
         consumerBuilder.clientId(kafkaPrefix + "client-session-event-consumer-" + consumerName);
@@ -87,7 +92,11 @@ public class KafkaClientSessionEventQueueFactory extends AbstractQueueFactory im
     public TbQueueControlledOffsetConsumer<TbProtoQueueMsg<ClientSessionEventResponseProto>> createEventResponseConsumer(String serviceId) {
         TbKafkaConsumerTemplate.TbKafkaConsumerTemplateBuilder<TbProtoQueueMsg<ClientSessionEventResponseProto>> consumerBuilder = TbKafkaConsumerTemplate.builder();
         String topic = clientSessionEventResponseSettings.getKafkaTopicPrefix() + "." + serviceId;
-        consumerBuilder.properties(consumerSettings.toProps(clientSessionEventResponseSettings.getAdditionalConsumerConfig()));
+        // Requests and responses can arrive before a new group has its first assignment.
+        // Resume committed offsets normally, but never skip pending records on a cold start.
+        Properties props = consumerSettings.toProps(clientSessionEventResponseSettings.getAdditionalConsumerConfig());
+        QueueUtil.overrideProperties("ClientSessionEventResponse", props, requiredConsumerProperties);
+        consumerBuilder.properties(props);
         consumerBuilder.topic(topic);
         consumerBuilder.topicConfigs(QueueUtil.getConfigs(clientSessionEventResponseSettings.getTopicProperties()));
         consumerBuilder.clientId(kafkaPrefix + "client-session-event-response-consumer-" + serviceId);

@@ -16,7 +16,7 @@
 package org.thingsboard.mqtt.broker.common.data.ws;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,7 +26,6 @@ import org.thingsboard.mqtt.broker.common.data.validation.Length;
 import org.thingsboard.mqtt.broker.common.data.validation.NoXss;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.Serial;
 import java.util.UUID;
 
@@ -54,7 +53,7 @@ public class WebSocketConnection extends BaseData {
             if (configurationBytes != null) {
                 try {
                     configuration = mapper.readValue(new ByteArrayInputStream(configurationBytes), WebSocketConnectionConfiguration.class);
-                } catch (IOException e) {
+                } catch (JacksonException e) {
                     log.warn("Can't deserialize WebSocket connection configuration: ", e);
                     return null;
                 }
@@ -69,7 +68,7 @@ public class WebSocketConnection extends BaseData {
         this.configuration = config;
         try {
             this.configurationBytes = config != null ? mapper.writeValueAsBytes(config) : null;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Can't serialize WebSocket connection configuration: ", e);
         }
     }

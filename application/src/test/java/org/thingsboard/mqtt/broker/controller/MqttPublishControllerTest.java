@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.node.StringNode;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import jakarta.servlet.AsyncEvent;
@@ -106,7 +106,7 @@ public class MqttPublishControllerTest extends AbstractControllerTest {
         when(restPublishService.publish(any())).thenReturn(Futures.immediateFuture(RestPublishResponse.success()));
         RestPublishRequest request = validRequest();
         request.setPayloadEncoding(PayloadEncoding.BASE64);
-        request.setPayload(new TextNode("AQID"));
+        request.setPayload(new StringNode("AQID"));
         request.setQos(2);
         request.setRetain(true);
         RestPublishProperties properties = new RestPublishProperties();
@@ -226,7 +226,7 @@ public class MqttPublishControllerTest extends AbstractControllerTest {
         ArgumentCaptor<RestPublishRequest> captor = ArgumentCaptor.forClass(RestPublishRequest.class);
         verify(restPublishService).publish(captor.capture());
         assertThat(captor.getValue().getPayload().isObject()).isTrue();
-        assertThat(captor.getValue().getPayload().get("cmd").asText()).isEqualTo("reboot");
+        assertThat(captor.getValue().getPayload().get("cmd").asString()).isEqualTo("reboot");
     }
 
     @Test
@@ -287,7 +287,7 @@ public class MqttPublishControllerTest extends AbstractControllerTest {
     public void givenBodyWithinLimit_whenPublish_thenNotRejectedBySizeGuard() throws Exception {
         when(restPublishService.publish(any())).thenReturn(Futures.immediateFuture(RestPublishResponse.success()));
         RestPublishRequest request = validRequest();
-        request.setPayload(new TextNode("x".repeat(1024)));
+        request.setPayload(new StringNode("x".repeat(1024)));
 
         doPostAsync(PUBLISH_URL, request, -1L).andExpect(status().isOk());
     }
@@ -332,7 +332,7 @@ public class MqttPublishControllerTest extends AbstractControllerTest {
     private RestPublishRequest validRequest() {
         RestPublishRequest request = new RestPublishRequest();
         request.setTopic("devices/a/commands");
-        request.setPayload(new TextNode("hello"));
+        request.setPayload(new StringNode("hello"));
         request.setQos(1);
         return request;
     }

@@ -24,6 +24,7 @@ import org.thingsboard.mqtt.broker.actors.TbActorRef;
 import org.thingsboard.mqtt.broker.actors.TbActorSystem;
 import org.thingsboard.mqtt.broker.actors.TbTypeActorId;
 import org.thingsboard.mqtt.broker.actors.client.ClientActorCreator;
+import org.thingsboard.mqtt.broker.actors.client.messages.CheckSessionMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.ConnectionAcceptedMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.EnhancedAuthInitMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.NonWritableChannelMsg;
@@ -118,6 +119,16 @@ public class ClientMqttActorManagerImpl implements ClientMqttActorManager {
     }
 
     @Override
+    public void checkSession(String clientId, CheckSessionMsg msg) {
+        TbActorRef clientActorRef = getActor(clientId);
+        if (clientActorRef == null) {
+            msg.getOnAbsent().run();
+        } else {
+            clientActorRef.tell(msg);
+        }
+    }
+
+    @Override
     public void notifyConnectionAccepted(String clientId, ConnectionAcceptedMsg connectionAcceptedMsg) {
         TbActorRef clientActorRef = getActor(clientId);
         if (clientActorRef == null) {
@@ -166,13 +177,22 @@ public class ClientMqttActorManagerImpl implements ClientMqttActorManager {
     }
 
     @Override
-    public void processSubscriptionsChanged(String clientId, Set<TopicSubscription> topicSubscriptions) {
+    public void processSubscriptionsChanged(String clientId, Set<TopicSubscription> topicSubscriptions, long offset) {
+        sendSubscriptionUpdate(clientId, new SubscriptionChangedEventMsg(topicSubscriptions, offset, false));
+    }
+
+    @Override
+    public void processSubscriptionWriteCompleted(String clientId) {
+        sendSubscriptionUpdate(clientId, new SubscriptionChangedEventMsg(Set.of(), -1, true));
+    }
+
+    private void sendSubscriptionUpdate(String clientId, SubscriptionChangedEventMsg update) {
         TbActorRef clientActorRef = getActor(clientId);
         if (clientActorRef == null) {
             // TODO: get ClientInfo and check if clientId is generated
             clientActorRef = createRootActor(clientId, true);
         }
-        clientActorRef.tellWithHighPriority(new SubscriptionChangedEventMsg(topicSubscriptions));
+        clientActorRef.tellWithHighPriority(update);
     }
 
     @Override

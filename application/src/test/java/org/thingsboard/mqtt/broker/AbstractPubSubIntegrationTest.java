@@ -15,7 +15,8 @@
  */
 package org.thingsboard.mqtt.broker;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -43,7 +44,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.thingsboard.mqtt.MqttClientConfig;
 import org.thingsboard.mqtt.broker.common.data.BrokerConstants;
@@ -87,7 +88,7 @@ public abstract class AbstractPubSubIntegrationTest {
         MQTT_PROPERTIES.setWillDelayInterval(1L);
     }
 
-    protected final ObjectMapper mapper = new ObjectMapper();
+    protected final ObjectMapper mapper = JsonMapper.builder().build();
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -125,10 +126,8 @@ public abstract class AbstractPubSubIntegrationTest {
         public boolean isLast;
     }
 
-    @ClassRule
-    public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.9.2"));
+    public static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.9.2"));
 
-    @ClassRule
     public static GenericContainer<?> valkey = new GenericContainer<>("valkey/valkey:8.0")
             .withExposedPorts(6379)
             .withLogConsumer(x -> log.warn("{}", x.getUtf8StringWithoutLineEnding()))
@@ -138,7 +137,13 @@ public abstract class AbstractPubSubIntegrationTest {
     public static ExternalResource resource = new ExternalResource() {
         @Override
         protected void before() {
-            valkey.start();
+            kafka.start();
+            try {
+                valkey.start();
+            } catch (RuntimeException e) {
+                kafka.stop();
+                throw e;
+            }
             System.setProperty("redis.connection.type", "standalone");
             System.setProperty("redis.standalone.host", valkey.getHost());
             System.setProperty("redis.standalone.port", String.valueOf(valkey.getMappedPort(6379)));
@@ -147,7 +152,11 @@ public abstract class AbstractPubSubIntegrationTest {
 
         @Override
         protected void after() {
-            valkey.stop();
+            try {
+                valkey.stop();
+            } finally {
+                kafka.stop();
+            }
             List.of("redis.connection.type", "redis.standalone.host", "redis.standalone.port", "redis.password")
                     .forEach(System.getProperties()::remove);
         }

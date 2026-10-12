@@ -52,17 +52,11 @@ public class AbstractRedisClusterContainer {
                 );
     }
 
-    @ClassRule(order = 1)
     public static GenericContainer<?> valkey1 = valkey("6371");
-    @ClassRule(order = 2)
     public static GenericContainer<?> valkey2 = valkey("6372");
-    @ClassRule(order = 3)
     public static GenericContainer<?> valkey3 = valkey("6373");
-    @ClassRule(order = 4)
     public static GenericContainer<?> valkey4 = valkey("6374");
-    @ClassRule(order = 5)
     public static GenericContainer<?> valkey5 = valkey("6375");
-    @ClassRule(order = 6)
     public static GenericContainer<?> valkey6 = valkey("6376");
 
     @ClassRule(order = 100)

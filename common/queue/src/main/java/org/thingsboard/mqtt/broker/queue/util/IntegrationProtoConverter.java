@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.queue.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.thingsboard.mqtt.broker.common.data.integration.ComponentLifecycleEvent;
 import org.thingsboard.mqtt.broker.common.data.integration.Integration;

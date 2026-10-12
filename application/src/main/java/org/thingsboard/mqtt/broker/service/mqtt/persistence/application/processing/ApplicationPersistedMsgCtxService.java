@@ -18,7 +18,7 @@ package org.thingsboard.mqtt.broker.service.mqtt.persistence.application.process
 public interface ApplicationPersistedMsgCtxService {
     ApplicationPersistedMsgCtx loadPersistedMsgCtx(String clientId);
 
-    void saveContext(String clientId, ApplicationPackProcessingCtx processingContext);
+    void saveContext(String clientId, ApplicationPackProcessingCtx processingContext, ApplicationPersistedMsgCtx restored);
 
     void clearContext(String clientId);
 }

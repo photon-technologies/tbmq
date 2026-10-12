@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -87,7 +87,7 @@ public final class ClientLifecycleEventTypeUtil {
             return new HashSet<>();
         }
         List<String> names = new ArrayList<>();
-        arrayNode.forEach(node -> names.add(node.asText()));
+        arrayNode.forEach(node -> names.add(node.asString()));
         return parse(names, onUnknown);
     }
 

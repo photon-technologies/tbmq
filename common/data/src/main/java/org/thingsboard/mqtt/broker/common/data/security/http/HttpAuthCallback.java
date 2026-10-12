@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data.security.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.springframework.http.ResponseEntity;
 
 public interface HttpAuthCallback {

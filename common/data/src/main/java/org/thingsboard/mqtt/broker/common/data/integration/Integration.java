@@ -16,8 +16,10 @@
 package org.thingsboard.mqtt.broker.common.data.integration;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.thingsboard.mqtt.broker.common.data.BaseData;
@@ -25,6 +27,7 @@ import org.thingsboard.mqtt.broker.common.data.validation.Length;
 import org.thingsboard.mqtt.broker.common.data.validation.NoXss;
 
 import java.io.Serial;
+import java.util.Map;
 import java.util.UUID;
 
 @EqualsAndHashCode(callSuper = true)
@@ -45,6 +48,8 @@ public class Integration extends BaseData {
     @NoXss
     private JsonNode additionalInfo;
 
+    @JsonProperty
+    @Schema(implementation = Map.class)
     private transient ObjectNode status;
 
     public Integration() {

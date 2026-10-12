@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.validation;
 
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.node.StringNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -61,7 +61,7 @@ public class NoXssValidatorTest {
     public void givenEntityWithMaliciousValueInAdditionalInfo_thenReturnValidationError() {
         User invalidUser = new User();
         invalidUser.setAdditionalInfo(JacksonUtil.newObjectNode()
-                .set("description", new TextNode(MALICIOUS_VALUE)));
+                .set("description", new StringNode(MALICIOUS_VALUE)));
 
         assertThatThrownBy(() -> ConstraintValidator.validateFields(invalidUser)).hasMessageContaining("is malformed");
     }

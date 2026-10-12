@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.testing.integration;
 
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.node.StringNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.paho.mqttv5.client.IMqttMessageListener;
@@ -201,7 +201,7 @@ public class RestPublishIntegrationTestCase extends AbstractControllerTest {
     private static RestPublishRequest request(String topic, String payload, PayloadEncoding encoding) {
         RestPublishRequest request = new RestPublishRequest();
         request.setTopic(topic);
-        request.setPayload(new TextNode(payload));
+        request.setPayload(new StringNode(payload));
         request.setPayloadEncoding(encoding);
         return request;
     }

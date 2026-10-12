@@ -15,7 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.dao.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -27,7 +28,6 @@ import org.thingsboard.mqtt.broker.common.data.GenericClientSessionCtx;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 import org.thingsboard.mqtt.broker.dao.util.mapping.JsonConverter;
 
-import java.io.IOException;
 import java.util.Set;
 
 @Data
@@ -61,7 +61,7 @@ public class GenericClientSessionCtxEntity implements ToData<GenericClientSessio
         Set<Integer> qos2PublishPacketIds;
         try {
             qos2PublishPacketIds = Set.of(JacksonUtil.OBJECT_MAPPER.treeToValue(this.qos2PublishPacketIds, Integer[].class));
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
         return GenericClientSessionCtx.builder()

@@ -20,6 +20,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 import org.thingsboard.mqtt.broker.common.data.PersistedPacketType;
+import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;
 import org.thingsboard.mqtt.broker.service.mqtt.PublishMsg;
 
 @AllArgsConstructor
@@ -29,12 +30,12 @@ import org.thingsboard.mqtt.broker.service.mqtt.PublishMsg;
 public class PersistedPublishMsg implements PersistedMsg {
 
     private final PublishMsg publishMsg;
-    private final long offset;
+    private final ApplicationMessageId messageId;
     private final boolean sharedSubscriptionMsg;
 
     @Override
-    public long getPacketOffset() {
-        return offset;
+    public ApplicationMessageId getMessageId() {
+        return messageId;
     }
 
     @Override

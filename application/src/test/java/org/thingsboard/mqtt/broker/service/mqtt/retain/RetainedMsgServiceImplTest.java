@@ -17,8 +17,8 @@ package org.thingsboard.mqtt.broker.service.mqtt.retain;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
@@ -41,12 +41,12 @@ import static org.mockito.Mockito.verify;
 })
 public class RetainedMsgServiceImplTest {
 
-    @MockBean
+    @MockitoBean
     RetainMsgTrie<RetainedMsg> retainMsgTrie;
-    @MockBean
+    @MockitoBean
     StatsManager statsManager;
 
-    @SpyBean
+    @MockitoSpyBean
     RetainedMsgServiceImpl retainedMsgService;
 
     @Test

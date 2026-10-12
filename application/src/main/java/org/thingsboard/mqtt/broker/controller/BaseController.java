@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.mail.MessagingException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolation;
@@ -200,7 +200,7 @@ public abstract class BaseController {
      */
     private static String unreadableBodyReason(HttpMessageNotReadableException e) {
         Throwable cause = e.getMostSpecificCause();
-        if (cause instanceof JsonProcessingException jpe) {
+        if (cause instanceof JacksonException jpe) {
             return jpe.getOriginalMessage();
         }
         return cause.getMessage() != null ? cause.getMessage() : e.getMessage();

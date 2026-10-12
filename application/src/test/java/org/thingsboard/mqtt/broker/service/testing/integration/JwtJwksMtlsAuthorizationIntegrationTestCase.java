@@ -48,6 +48,7 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.rules.ExternalResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootContextLoader;
@@ -98,8 +99,20 @@ public class JwtJwksMtlsAuthorizationIntegrationTestCase extends AbstractPubSubI
     private static final String MY_TOPIC = "my/topic";
     private static final String TEST_TOPIC = "test/topic";
 
-    @ClassRule
     public static final WireMockContainer wireMockServer;
+
+    @ClassRule
+    public static final ExternalResource wireMockLifecycle = new ExternalResource() {
+        @Override
+        protected void before() {
+            wireMockServer.start();
+        }
+
+        @Override
+        protected void after() {
+            wireMockServer.stop();
+        }
+    };
 
     private static final RSAKey rsaJwk;
     private static final String jwksBodyEscapedStr;

@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.SslContext;
@@ -50,8 +50,8 @@ import reactor.netty.resources.ConnectionProvider;
 import javax.net.ssl.SSLException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
@@ -82,6 +82,9 @@ public class HttpAuthClient {
     HttpAuthClient(HttpMqttAuthProviderConfiguration configuration) {
         try {
             config = configuration;
+            if (config.getReadTimeoutMs() <= 0) {
+                throw new IllegalArgumentException("HTTP authentication timeout must be positive");
+            }
             if (config.getMaxParallelRequestsCount() > 0) {
                 semaphore = new Semaphore(config.getMaxParallelRequestsCount());
             }
@@ -145,6 +148,7 @@ public class HttpAuthClient {
             if (semaphore != null && !semaphore.tryAcquire(config.getReadTimeoutMs(), TimeUnit.MILLISECONDS)) {
                 log.warn("[{}] HTTP auth provider timeout during waiting for reply!", clientId);
                 callback.onFailure(new RuntimeException("Timeout during waiting for reply!"));
+                return;
             }
 
             HttpMethod method = HttpMethod.valueOf(config.getRequestMethod());
@@ -162,6 +166,7 @@ public class HttpAuthClient {
 
             processRequest(clientId, request, callback);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn("[{}] HTTP auth provider client interrupted while trying to acquire the lock", clientId, e);
             callback.onFailure(e);
         }
@@ -234,7 +239,7 @@ public class HttpAuthClient {
         log.debug("[{}] HTTP auth provider processException stacktrace", clientId, e);
     }
 
-    void headersToMetaData(Map<String, List<String>> headers, BiConsumer<String, String> consumer) {
+    void headersToMetaData(HttpHeaders headers, BiConsumer<String, String> consumer) {
         if (headers == null) {
             return;
         }
@@ -273,6 +278,7 @@ public class HttpAuthClient {
 
             processRequest(TEST_CLIENT_ID, request, callback);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn("HTTP auth provider client interrupted while trying to acquire the lock on check connection", e);
             callback.onFailure(e);
         }
@@ -282,6 +288,9 @@ public class HttpAuthClient {
         request
                 .retrieve()
                 .toEntity(JsonNode.class)
+                // Bound DNS, pool wait, TCP/TLS setup and the entire response body.
+                // A socket read-idle timeout alone misses connection outages and trickling bodies.
+                .timeout(Duration.ofMillis(config.getReadTimeoutMs()))
                 .subscribe(responseEntity -> {
                     if (semaphore != null) {
                         semaphore.release();

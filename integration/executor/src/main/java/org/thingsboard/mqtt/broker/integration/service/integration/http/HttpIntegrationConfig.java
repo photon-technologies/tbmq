@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.integration.service.integration.http;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -34,7 +35,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-@NoArgsConstructor
+@NoArgsConstructor(onConstructor_ = @JsonCreator)
 @AllArgsConstructor
 public class HttpIntegrationConfig {
 

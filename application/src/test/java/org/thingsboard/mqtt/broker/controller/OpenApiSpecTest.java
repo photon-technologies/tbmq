@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -124,7 +124,7 @@ public class OpenApiSpecTest extends AbstractControllerTest {
                 if (responses == null) {
                     continue;
                 }
-                responses.fieldNames().forEachRemaining(code -> {
+                responses.propertyNames().iterator().forEachRemaining(code -> {
                     if (!code.matches("\\d{3}|[1-5]XX|default")) {
                         problems.add("Invalid response code '" + code + "' in " + operation.getKey() + " " + path.getKey());
                     }
@@ -132,7 +132,7 @@ public class OpenApiSpecTest extends AbstractControllerTest {
             }
         }
         for (Map.Entry<String, JsonNode> section : spec.path("components").properties()) {
-            section.getValue().fieldNames().forEachRemaining(name -> {
+            section.getValue().propertyNames().iterator().forEachRemaining(name -> {
                 if (!name.matches("[a-zA-Z0-9.\\-_]+")) {
                     problems.add("Invalid component name '" + name + "' in components." + section.getKey());
                 }
@@ -160,12 +160,12 @@ public class OpenApiSpecTest extends AbstractControllerTest {
             }
             // Without a mapping, generated clients use schema names (ClientIdBlockedClient) instead of the server's values (CLIENT_ID)
             List<String> mappedRefs = new ArrayList<>();
-            discriminator.path("mapping").forEach(ref -> mappedRefs.add(ref.asText()));
+            discriminator.path("mapping").forEach(ref -> mappedRefs.add(ref.asString()));
             String parentRef = "#/components/schemas/" + schema.getKey();
             for (Map.Entry<String, JsonNode> subtype : schemas.properties()) {
                 for (JsonNode part : subtype.getValue().path("allOf")) {
                     String subtypeRef = "#/components/schemas/" + subtype.getKey();
-                    if (parentRef.equals(part.path("$ref").asText()) && !mappedRefs.contains(subtypeRef)) {
+                    if (parentRef.equals(part.path("$ref").asString()) && !mappedRefs.contains(subtypeRef)) {
                         problems.add("Discriminator of " + schema.getKey() + " has no mapping to subtype " + subtype.getKey());
                     }
                 }
@@ -176,11 +176,11 @@ public class OpenApiSpecTest extends AbstractControllerTest {
         for (JsonNode oneOf : spec.findValues("oneOf")) {
             List<String> openBranches = new ArrayList<>();
             for (JsonNode branch : oneOf) {
-                String ref = branch.path("$ref").asText();
+                String ref = branch.path("$ref").asString();
                 JsonNode branchSchema = ref.isEmpty() ? branch : schemas.path(ref.substring(ref.lastIndexOf('/') + 1));
                 boolean hasDiscriminatorParent = false;
                 for (JsonNode part : branchSchema.path("allOf")) {
-                    String partRef = part.path("$ref").asText();
+                    String partRef = part.path("$ref").asString();
                     if (!partRef.isEmpty() && schemas.path(partRef.substring(partRef.lastIndexOf('/') + 1)).has("discriminator")) {
                         hasDiscriminatorParent = true;
                     }
@@ -193,14 +193,29 @@ public class OpenApiSpecTest extends AbstractControllerTest {
                 problems.add("oneOf branches " + openBranches + " cannot be told apart; use anyOf");
             }
         }
-        if (spec.findValuesAsText("type").contains("any")) {
+        if (spec.findValues("type").stream().anyMatch(type -> type.isString() && "any".equals(type.stringValue()))) {
             problems.add("Schema with invalid type 'any'");
         }
         assertThat(problems).isEmpty();
     }
 
+    @Test
+    public void givenGeneratedSpec_thenIntegrationWireContractIsDocumented() throws Exception {
+        JsonNode spec = JacksonUtil.toJsonNode(fetchSpec());
+        assertThat(spec.at("/components/schemas/Integration/properties/status/type").asString()).isEqualTo("object");
+        assertThat(spec.path("paths").path("/api/integration").path("post")
+                .path("requestBody").path("content").path("application/json")
+                .path("schema").path("$ref").asString())
+                .isEqualTo("#/components/schemas/Integration");
+    }
+
     private String fetchSpec() throws Exception {
         return doGet(API_DOCS_URL)
+                .andDo(result -> {
+                    if (result.getResolvedException() != null) {
+                        throw result.getResolvedException();
+                    }
+                })
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }

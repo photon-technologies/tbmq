@@ -15,7 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.core.io.JsonStringEncoder;
+import tools.jackson.databind.JsonNode;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -33,7 +34,6 @@ import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType;
 import org.thingsboard.mqtt.broker.common.data.security.http.HttpAuthCallback;
 import org.thingsboard.mqtt.broker.common.data.security.http.HttpMqttAuthProviderConfiguration;
 import org.thingsboard.mqtt.broker.common.data.util.CallbackUtil;
-import org.thingsboard.mqtt.broker.common.data.util.StringUtils;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 import org.thingsboard.mqtt.broker.dao.client.provider.MqttAuthProviderService;
 import org.thingsboard.mqtt.broker.service.auth.AuthorizationRuleService;
@@ -47,9 +47,12 @@ import org.thingsboard.mqtt.broker.util.SslUtil;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.thingsboard.mqtt.broker.common.data.BrokerConstants.EMPTY_STR;
 import static org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType.HTTP;
@@ -58,6 +61,8 @@ import static org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderT
 @Service
 @RequiredArgsConstructor
 public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMqttAuthProviderConfiguration> {
+
+    private static final Pattern REQUEST_VARIABLE = Pattern.compile("\\$\\{(commonName|clientId|username|password)}");
 
     private final MqttAuthProviderService mqttAuthProviderService;
     private final AuthorizationRuleService authorizationRuleService;
@@ -133,11 +138,20 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
         String password = authContext.getPasswordBytes() != null ?
                 new String(authContext.getPasswordBytes(), StandardCharsets.UTF_8) : EMPTY_STR;
 
-        return requestBody
-                .replace("${commonName}", commonName)
-                .replace("${clientId}", clientId)
-                .replace("${username}", username)
-                .replace("${password}", password);
+        // Match only the configured JSON template. Inserted values are literal
+        // JSON string content and must never become another template variable.
+        return REQUEST_VARIABLE.matcher(requestBody).replaceAll(match -> {
+            String value = switch (match.group(1)) {
+                case "commonName" -> commonName;
+                case "clientId" -> clientId;
+                case "username" -> username;
+                case "password" -> password;
+                default -> throw new IllegalStateException("Unknown HTTP authentication variable");
+            };
+            StringBuilder escaped = new StringBuilder(value.length());
+            JsonStringEncoder.getInstance().quoteAsString(value, escaped);
+            return Matcher.quoteReplacement(escaped.toString());
+        });
     }
 
     @SneakyThrows
@@ -208,9 +222,15 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
     private AuthResponse getAuthResponse(String clientId, ResponseEntity<JsonNode> responseEntity) {
         JsonNode responseBody = responseEntity.getBody();
 
-        if (responseBody == null || responseBody.isNull()) {
-            log.debug("[{}] Empty response body received. Using default configuration.", clientId);
-            return success(configuration.getDefaultClientType(), authRulePatterns);
+        // An HTTP success status is transport success, not an authentication verdict.
+        // Never turn an absent/invalid decision into the configured default grants.
+        if (responseBody == null || !responseBody.isObject()
+                || !responseBody.path("result").isString()) {
+            return AuthResponse.failure("HTTP authentication requires an explicit result.");
+        }
+        JsonNode type = responseBody.get("clientType");
+        if (type != null && !type.isNull() && (!type.isString() || type.asString().isBlank())) {
+            return AuthResponse.failure("Invalid HTTP authentication client type.");
         }
 
         try {
@@ -232,8 +252,8 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
             return success(finalClientType, authRulePatterns);
 
         } catch (Exception e) {
-            log.warn("[{}] Failed to parse HTTP auth response body: {}", clientId, responseBody, e);
-            return AuthResponse.skip(e.getMessage());
+            log.warn("[{}] Invalid HTTP authentication response", clientId);
+            return AuthResponse.failure("Invalid HTTP authentication response.");
         }
     }
 
@@ -243,38 +263,31 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
 
     private AuthStatus parseStatus(String clientId, String result) {
         if (result == null) {
-            return AuthStatus.SUCCESS;
+            return AuthStatus.FAILURE;
         }
         try {
-            return AuthStatus.valueOf(result.toUpperCase());
+            return AuthStatus.valueOf(result.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Unknown auth result status: {}. Defaulting to SKIPPED.", clientId, result);
-            return AuthStatus.SKIPPED;
+            log.warn("[{}] Invalid HTTP authentication result", clientId);
+            return AuthStatus.FAILURE;
         }
     }
 
     private ClientType parseClientType(String clientId, String type) {
-        if (StringUtils.isBlank(type)) {
+        if (type == null) {
             return configuration.getDefaultClientType();
         }
-        try {
-            return ClientType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Unknown client type in response: {}. Falling back to default.", clientId, type);
-            return configuration.getDefaultClientType();
+        ClientType parsed = ClientType.valueOf(type.toUpperCase(Locale.ROOT));
+        if (parsed != ClientType.DEVICE && parsed != ClientType.APPLICATION) {
+            throw new IllegalArgumentException("Unsupported HTTP authentication client type");
         }
+        return parsed;
     }
 
     private AuthRulePatterns parseAuthRules(String clientId, PubSubAuthorizationRules authRules) {
-        if (authRules != null) {
-            try {
-                return authorizationRuleService.parsePubSubAuthorizationRule(authRules);
-            } catch (Exception e) {
-                log.warn("[{}] Failed to parse auth rules from response: {}", clientId, authRules, e);
-            }
-        }
-        return authRulePatterns;
-
+        // Omitted permissions may use deliberately configured defaults after explicit
+        // success. Invalid supplied permissions must never fall back to those grants.
+        return authRules == null ? authRulePatterns : authorizationRuleService.parsePubSubAuthorizationRule(authRules);
     }
 
 }

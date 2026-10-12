@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.thingsboard.mqtt.broker.common.data.validation.Length;
 import org.thingsboard.mqtt.broker.common.data.validation.NoXss;
 

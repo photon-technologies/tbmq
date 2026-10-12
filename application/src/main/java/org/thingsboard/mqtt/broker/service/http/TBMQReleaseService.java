@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,7 +96,7 @@ public class TBMQReleaseService extends AbstractServiceProvider {
 
     private String getVersion(HttpResponse<String> response) {
         JsonNode jsonNode = JacksonUtil.toJsonNode(response.body());
-        return jsonNode.get("tag_name").asText().replaceAll("v", "");
+        return jsonNode.get("tag_name").asString().replaceAll("v", "");
     }
 
     private HttpResponse<String> sendRequest() throws IOException, InterruptedException {

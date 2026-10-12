@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.session;
 
+import org.thingsboard.mqtt.broker.actors.client.messages.CheckSessionMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.ConnectionAcceptedMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.EnhancedAuthInitMsg;
 import org.thingsboard.mqtt.broker.actors.client.messages.NonWritableChannelMsg;
@@ -45,6 +46,8 @@ public interface ClientMqttActorManager {
 
     void processMqttMsg(String clientId, QueueableMqttMsg mqttMsg);
 
+    void checkSession(String clientId, CheckSessionMsg msg);
+
     void notifyConnectionAccepted(String clientId, ConnectionAcceptedMsg connectionAcceptedMsg);
 
     void subscribe(String clientId, SubscribeCommandMsg subscribeCommandMsg);
@@ -55,7 +58,9 @@ public interface ClientMqttActorManager {
 
     void notifyChannelWritable(String clientId, WritableChannelMsg writableChannelMsg);
 
-    void processSubscriptionsChanged(String clientId, Set<TopicSubscription> topicSubscriptions);
+    void processSubscriptionsChanged(String clientId, Set<TopicSubscription> topicSubscriptions, long offset);
+
+    void processSubscriptionWriteCompleted(String clientId);
 
     void processSessionClusterManagementMsg(String clientId, SessionClusterManagementMsg msg);
 

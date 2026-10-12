@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.dao.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.ListenableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -151,7 +151,7 @@ public class IntegrationServiceImpl implements IntegrationService {
                         if (!topicFilters.isArray()) {
                             throw new DataValidationException("Topic filters should be an array!");
                         }
-                        topicFilters.forEach(topicFilter -> topicValidationService.validateTopicFilter(topicFilter.asText()));
+                        topicFilters.forEach(topicFilter -> topicValidationService.validateTopicFilter(topicFilter.asString()));
                     }
 
                     if (lifecycleEventTypes != null && !lifecycleEventTypes.isNull()) {

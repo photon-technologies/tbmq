@@ -14,28 +14,29 @@
 # limitations under the License.
 #
 
+# The Debian package is only a build artifact; no Debian installer or service manager
+# is part of the runtime image. Keep the existing Maven package/buildx workflow.
+FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS unpack
+COPY ${pkg.name}.deb /tmp/application.deb
+RUN dpkg-deb --extract /tmp/application.deb /out
+
 FROM ${docker.base.image}
 
+# Retain the existing numeric identity for mounted configuration and data volumes.
+RUN dnf install -y --setopt=install_weak_deps=False shadow-utils \
+    && dnf clean all \
+    && groupadd --system --gid 799 ${pkg.user} \
+    && useradd --system --no-create-home --uid 799 --gid ${pkg.user} --home-dir ${pkg.installFolder} ${pkg.user}
+
+COPY --from=unpack --chown=${pkg.user}:${pkg.user} /out${pkg.installFolder}/ ${pkg.installFolder}/
 ENV DATA_FOLDER=/data
+COPY --chown=${pkg.user}:${pkg.user} logback.xml ${pkg.name}.conf ${pkg.installFolder}/conf/
+COPY start-tbmq.sh install-tbmq.sh upgrade-tbmq.sh /usr/bin/
 
-COPY logback.xml ${pkg.name}.conf start-tbmq.sh install-tbmq.sh upgrade-tbmq.sh ${pkg.name}.deb /tmp/
-
-RUN apt-get update \
-    && chmod a+x /tmp/*.sh \
-    && mv /tmp/start-tbmq.sh /usr/bin \
-    && mv /tmp/install-tbmq.sh /usr/bin \
-    && mv /tmp/upgrade-tbmq.sh /usr/bin \
-    && dpkg -i /tmp/${pkg.name}.deb \
-    && rm /tmp/${pkg.name}.deb \
-    && (systemctl --no-reload disable --now ${pkg.name}.service > /dev/null 2>&1 || :) \
-    && mv /tmp/logback.xml ${pkg.installFolder}/conf \
-    && mv /tmp/${pkg.name}.conf ${pkg.installFolder}/conf \
-    && mkdir -p $DATA_FOLDER \
-    && chown -R ${pkg.user}:${pkg.user} $DATA_FOLDER \
-    && chown -R ${pkg.user}:${pkg.user} /var/log/${pkg.name} \
-    && chown -R ${pkg.user}:${pkg.user} /tmp \
-    && chmod 555 ${pkg.installFolder}/bin/${pkg.name}.jar \
-    && apt-get install -y curl
+RUN mkdir -p /data /var/log/${pkg.name} /etc/${pkg.name} \
+    && ln -s ${pkg.installFolder}/conf /etc/${pkg.name}/conf \
+    && chown ${pkg.user}:${pkg.user} /data /var/log/${pkg.name} \
+    && chmod 555 ${pkg.installFolder}/bin/${pkg.name}.jar /usr/bin/start-tbmq.sh /usr/bin/install-tbmq.sh /usr/bin/upgrade-tbmq.sh
 
 USER ${pkg.user}
 

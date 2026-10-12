@@ -15,21 +15,21 @@
  */
 package org.thingsboard.mqtt.broker.common.util;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.Arrays;
 
 public class JacksonUtil {
 
-    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
 
     public static <T> T convertValue(Object fromValue, Class<T> toValueType) {
         try {
@@ -51,7 +51,7 @@ public class JacksonUtil {
     public static <T> T fromString(String string, TypeReference<T> toValueTypeRef) {
         try {
             return OBJECT_MAPPER.readValue(string, toValueTypeRef);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given string value cannot be converted to " + toValueTypeRef + ": " + string, e);
         }
     }
@@ -59,7 +59,7 @@ public class JacksonUtil {
     public static <T> T fromString(String string, Class<T> clazz) {
         try {
             return string != null ? OBJECT_MAPPER.readValue(string, clazz) : null;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given string value: "
                     + string + " cannot be transformed to Json object", e);
         }
@@ -68,7 +68,7 @@ public class JacksonUtil {
     public static String toString(Object value) {
         try {
             return value != null ? OBJECT_MAPPER.writeValueAsString(value) : null;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given Json object value: "
                     + value + " cannot be transformed to a String", e);
         }
@@ -80,7 +80,7 @@ public class JacksonUtil {
         }
         try {
             return OBJECT_MAPPER.readTree(value);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -91,7 +91,7 @@ public class JacksonUtil {
         }
         try {
             return OBJECT_MAPPER.treeToValue(jsonNode, clazz);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException(e);
         }
     }
@@ -125,7 +125,7 @@ public class JacksonUtil {
     public static <T> byte[] writeValueAsBytes(T value) {
         try {
             return OBJECT_MAPPER.writeValueAsBytes(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given Json object value cannot be transformed to bytes: " + value, e);
         }
     }
@@ -133,7 +133,7 @@ public class JacksonUtil {
     public static <T> T fromBytes(byte[] bytes, Class<T> clazz) {
         try {
             return bytes != null ? OBJECT_MAPPER.readValue(bytes, clazz) : null;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given string value cannot be transformed to Json object: " + Arrays.toString(bytes), e);
         }
     }
@@ -141,7 +141,7 @@ public class JacksonUtil {
     public static <T> T fromReader(Reader reader, Class<T> clazz) {
         try {
             return reader != null ? OBJECT_MAPPER.readValue(reader, clazz) : null;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("Invalid request payload", e);
         }
     }
@@ -149,7 +149,7 @@ public class JacksonUtil {
     public static JsonNode fromBytes(byte[] bytes) {
         try {
             return OBJECT_MAPPER.readTree(bytes);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given byte[] value cannot be transformed to Json object: " + Arrays.toString(bytes), e);
         }
     }
@@ -157,7 +157,7 @@ public class JacksonUtil {
     public static <T> void writeValue(Writer writer, T value) {
         try {
             OBJECT_MAPPER.writeValue(writer, value);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("The given writer value: "
                     + writer + "cannot be wrote", e);
         }

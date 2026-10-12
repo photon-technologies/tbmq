@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.integration.api.template;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.common.data.integration.ClientLifecycleEventType;
@@ -115,7 +115,7 @@ class IntegrationTemplateEnvelopeParityTest {
 
     private static Set<String> keysOf(ObjectNode node) {
         Set<String> keys = new TreeSet<>();
-        node.fieldNames().forEachRemaining(keys::add);
+        node.propertyNames().iterator().forEachRemaining(keys::add);
         return keys;
     }
 
