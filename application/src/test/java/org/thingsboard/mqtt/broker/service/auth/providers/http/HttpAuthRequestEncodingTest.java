@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.After;
 import org.junit.Before;
@@ -114,10 +114,10 @@ public class HttpAuthRequestEncodingTest {
         assertThat(body).isNotNull();
         assertThat(body.size()).isEqualTo(6);
         for (String field : List.of("clientId", "username", "password")) {
-            assertThat(body.path(field).asText()).isEqualTo(value);
+            assertThat(body.path(field).asString()).isEqualTo(value);
         }
-        assertThat(body.path("commonName").asText()).isEmpty();
-        assertThat(body.path("literal").asText()).isEqualTo("${unknown}");
-        assertThat(body.path("repeated").asText()).isEqualTo("prefix:" + value + ":" + value);
+        assertThat(body.path("commonName").asString()).isEmpty();
+        assertThat(body.path("literal").asString()).isEqualTo("${unknown}");
+        assertThat(body.path("repeated").asString()).isEqualTo("prefix:" + value + ":" + value);
     }
 }

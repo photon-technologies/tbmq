@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data.event;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

@@ -17,12 +17,12 @@ package org.thingsboard.mqtt.broker.ssl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.boot.web.server.Ssl.ClientAuth;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
-import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory;
+import org.springframework.boot.web.server.servlet.ConfigurableServletWebServerFactory;
 import org.springframework.stereotype.Component;
 import org.thingsboard.mqtt.broker.ssl.config.SslCredentials;
 import org.thingsboard.mqtt.broker.ssl.config.SslCredentialsConfig;

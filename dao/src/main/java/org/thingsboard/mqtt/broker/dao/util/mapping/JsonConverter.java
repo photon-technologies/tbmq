@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.util.mapping;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;

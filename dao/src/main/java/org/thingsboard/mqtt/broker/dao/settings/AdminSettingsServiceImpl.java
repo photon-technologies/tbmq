@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.dao.settings;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.thingsboard.mqtt.broker.common.data.AdminSettings;
@@ -63,7 +63,7 @@ public class AdminSettingsServiceImpl implements AdminSettingsService {
         if (adminSettings.getKey().equals(SysAdminSettingType.MAIL.getKey()) && !adminSettings.getJsonValue().has("password")) {
             AdminSettings mailSettings = findAdminSettingsByKey(SysAdminSettingType.MAIL.getKey());
             if (mailSettings != null) {
-                ((ObjectNode) adminSettings.getJsonValue()).put("password", mailSettings.getJsonValue().get("password").asText());
+                ((ObjectNode) adminSettings.getJsonValue()).put("password", mailSettings.getJsonValue().get("password").asString());
             }
         }
         return adminSettingsDao.save(adminSettings);

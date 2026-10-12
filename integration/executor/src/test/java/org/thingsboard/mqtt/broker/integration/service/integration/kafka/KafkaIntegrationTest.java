@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.integration.service.integration.kafka;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
@@ -93,7 +93,7 @@ class KafkaIntegrationTest {
         ProducerRecord<String, String> record = single();
         assertThat(record.key()).isEqualTo("dev-alice");
         JsonNode value = JacksonUtil.toJsonNode(record.value());
-        assertThat(value.get("username").asText()).isEqualTo("alice");
+        assertThat(value.get("username").asString()).isEqualTo("alice");
         assertThat(value.has("payload")).isTrue();
     }
 
@@ -247,7 +247,7 @@ class KafkaIntegrationTest {
         assertThat(record.key()).isEqualTo("c1");
         assertThat(headerNames(record)).containsExactly("user");
         assertThat(headerValues(record, "user")).containsExactly("alice");
-        assertThat(JacksonUtil.toJsonNode(record.value()).get("eventType").asText()).isEqualTo("CLIENT_CONNECTED");
+        assertThat(JacksonUtil.toJsonNode(record.value()).get("eventType").asString()).isEqualTo("CLIENT_CONNECTED");
         verify(callback).onSuccess();
     }
 

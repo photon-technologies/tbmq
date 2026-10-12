@@ -15,6 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data.security.ssl;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,7 +24,7 @@ import org.thingsboard.mqtt.broker.common.data.security.MqttAuthProviderType;
 
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(onConstructor_ = @JsonCreator)
 public class SslMqttAuthProviderConfiguration implements MqttAuthProviderConfiguration {
 
     private boolean skipValidityCheckForClientCert;

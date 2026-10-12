@@ -14,25 +14,27 @@
 # limitations under the License.
 #
 
+# The Debian package is only a build artifact; no Debian installer or service manager
+# is part of the runtime image. Keep the existing Maven package/buildx workflow.
+FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS unpack
+COPY ${pkg.name}.deb /tmp/application.deb
+RUN dpkg-deb --extract /tmp/application.deb /out
+
 FROM ${docker.base.image}
 
-COPY start-tb-mqtt-broker.sh ${pkg.name}.deb /tmp/
+# Retain the existing numeric identity for mounted configuration and data volumes.
+RUN dnf install -y --setopt=install_weak_deps=False shadow-utils \
+    && dnf clean all \
+    && groupadd --system --gid 799 ${pkg.user} \
+    && useradd --system --no-create-home --uid 799 --gid ${pkg.user} --home-dir ${pkg.installFolder} ${pkg.user}
 
-RUN apt-get update \
-    && apt-get install -y curl
+COPY --from=unpack --chown=${pkg.user}:${pkg.user} /out${pkg.installFolder}/ ${pkg.installFolder}/
+COPY start-tb-mqtt-broker.sh /usr/bin/
 
-RUN chmod a+x /tmp/*.sh \
-    && mv /tmp/start-tb-mqtt-broker.sh /usr/bin
-
-RUN yes | dpkg -i /tmp/${pkg.name}.deb
-RUN rm /tmp/${pkg.name}.deb
-
-RUN systemctl --no-reload disable --now ${pkg.name}.service > /dev/null 2>&1 || :
-
-RUN chown -R ${pkg.user}:${pkg.user} /tmp \
-    && mkdir -p /data \
-    && chown -R ${pkg.user}:${pkg.user} /data \
-    && chmod 555 ${pkg.installFolder}/bin/${pkg.name}.jar
+RUN mkdir -p /data /var/log/${pkg.name} /etc/${pkg.name} \
+    && ln -s ${pkg.installFolder}/conf /etc/${pkg.name}/conf \
+    && chown ${pkg.user}:${pkg.user} /data /var/log/${pkg.name} \
+    && chmod 555 ${pkg.installFolder}/bin/${pkg.name}.jar /usr/bin/start-tb-mqtt-broker.sh
 
 USER ${pkg.user}
 

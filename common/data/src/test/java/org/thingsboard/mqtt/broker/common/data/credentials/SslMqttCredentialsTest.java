@@ -15,8 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.common.data.credentials;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.PubSubAuthorizationRules;
@@ -28,7 +29,7 @@ import java.util.Set;
 
 class SslMqttCredentialsTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     @Test
     public void givenNoClientIdConstraint_whenSerialize_thenKeepPreClientIdJsonShape() throws Exception {
@@ -57,13 +58,13 @@ class SslMqttCredentialsTest {
 
         JsonNode json = MAPPER.readTree(MAPPER.writeValueAsString(credentials));
 
-        Assertions.assertEquals("device-[0-9]+", json.get("clientIdPattern").asText());
+        Assertions.assertEquals("device-[0-9]+", json.get("clientIdPattern").asString());
         Assertions.assertTrue(json.get("clientIdIsRegex").asBoolean());
     }
 
     private static Set<String> fieldNames(JsonNode json) {
         Set<String> names = new HashSet<>();
-        json.fieldNames().forEachRemaining(names::add);
+        json.propertyNames().iterator().forEachRemaining(names::add);
         return names;
     }
 

@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class AbstractRedisContainer {
 
-    @ClassRule(order = 0)
     public static GenericContainer<?> valkey = new GenericContainer<>("valkey/valkey:8.0")
             .withExposedPorts(6379)
             .withLogConsumer(x -> log.warn("{}", x.getUtf8StringWithoutLineEnding()))

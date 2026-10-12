@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.core.io.JsonStringEncoder;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.core.io.JsonStringEncoder;
+import tools.jackson.databind.JsonNode;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -148,7 +148,9 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
                 case "password" -> password;
                 default -> throw new IllegalStateException("Unknown HTTP authentication variable");
             };
-            return Matcher.quoteReplacement(new String(JsonStringEncoder.getInstance().quoteAsString(value)));
+            StringBuilder escaped = new StringBuilder(value.length());
+            JsonStringEncoder.getInstance().quoteAsString(value, escaped);
+            return Matcher.quoteReplacement(escaped.toString());
         });
     }
 
@@ -223,11 +225,11 @@ public class HttpMqttClientAuthProvider implements MqttClientAuthProvider<HttpMq
         // An HTTP success status is transport success, not an authentication verdict.
         // Never turn an absent/invalid decision into the configured default grants.
         if (responseBody == null || !responseBody.isObject()
-                || !responseBody.path("result").isTextual()) {
+                || !responseBody.path("result").isString()) {
             return AuthResponse.failure("HTTP authentication requires an explicit result.");
         }
         JsonNode type = responseBody.get("clientType");
-        if (type != null && !type.isNull() && (!type.isTextual() || type.asText().isBlank())) {
+        if (type != null && !type.isNull() && (!type.isString() || type.asString().isBlank())) {
             return AuthResponse.failure("Invalid HTTP authentication client type.");
         }
 

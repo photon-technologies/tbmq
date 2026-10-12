@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.integration;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.thingsboard.mqtt.broker.common.data.integration.Integration;
 import org.thingsboard.mqtt.broker.common.data.page.PageData;

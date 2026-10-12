@@ -16,15 +16,15 @@
 package org.thingsboard.mqtt.broker.dao;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
-@EnableAutoConfiguration(exclude = {RedisAutoConfiguration.class})
+// Redis connections are configured by the cache module, including in applications that add Boot Redis support.
+@EnableAutoConfiguration(excludeName = "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration")
 @ComponentScan("org.thingsboard.mqtt.broker.dao")
 @EnableJpaRepositories("org.thingsboard.mqtt.broker.dao")
 @EntityScan("org.thingsboard.mqtt.broker.dao.model")

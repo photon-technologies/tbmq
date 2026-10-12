@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.integration.api;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.thingsboard.mqtt.broker.common.data.event.ErrorEvent;
 import org.thingsboard.mqtt.broker.common.data.exception.ThingsboardException;
@@ -65,9 +65,9 @@ public abstract class AbstractIntegration implements TbPlatformIntegration {
         mdMap.put("integrationName", lifecycleMsg.getName());
         JsonNode metadata = lifecycleMsg.getConfiguration().get("metadata");
         if (metadata != null && !metadata.isNull()) {
-            for (Iterator<Entry<String, JsonNode>> it = metadata.fields(); it.hasNext(); ) {
+            for (Iterator<Entry<String, JsonNode>> it = metadata.properties().iterator(); it.hasNext(); ) {
                 Entry<String, JsonNode> md = it.next();
-                mdMap.put(md.getKey(), md.getValue().asText());
+                mdMap.put(md.getKey(), md.getValue().asString());
             }
         }
         this.metadataTemplate = new UplinkMetaData(getDefaultUplinkContentType(), mdMap);

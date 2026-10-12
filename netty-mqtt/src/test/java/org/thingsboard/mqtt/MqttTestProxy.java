@@ -21,6 +21,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -34,6 +35,7 @@ import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -72,6 +74,8 @@ public class MqttTestProxy {
         ServerBootstrap proxyBootstrap = new ServerBootstrap();
         proxyBootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
+                // Reconnect tests restart this listener while prior TCP connections may be in TIME_WAIT.
+                .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel channel) {
@@ -167,16 +171,16 @@ public class MqttTestProxy {
         // release the port before returning, so a replacement proxy can bind it; must not run on the proxy's own loop
         serverChannel.close().syncUninterruptibly();
         if (clientToProxyChannel != null) {
-            clientToProxyChannel.close();
+            clientToProxyChannel.close().syncUninterruptibly();
         }
         if (proxyToBrokerChannel != null) {
-            proxyToBrokerChannel.close();
+            proxyToBrokerChannel.close().syncUninterruptibly();
         }
         if (bossGroup != null) {
-            bossGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly();
         }
         if (workerGroup != null) {
-            workerGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly();
         }
 
         log.info("MQTT proxy stopped");

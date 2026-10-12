@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.SslContext;
@@ -52,7 +52,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
@@ -240,7 +239,7 @@ public class HttpAuthClient {
         log.debug("[{}] HTTP auth provider processException stacktrace", clientId, e);
     }
 
-    void headersToMetaData(Map<String, List<String>> headers, BiConsumer<String, String> consumer) {
+    void headersToMetaData(HttpHeaders headers, BiConsumer<String, String> consumer) {
         if (headers == null) {
             return;
         }

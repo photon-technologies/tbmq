@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.queue.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.common.data.integration.ComponentLifecycleEvent;
@@ -171,8 +171,8 @@ class IntegrationProtoConverterTest {
         JsonNode jsonNode = IntegrationProtoConverter.fromProto(userProperties);
 
         assertTrue(jsonNode.has("prop1"));
-        assertEquals("value1", jsonNode.get("prop1").asText());
+        assertEquals("value1", jsonNode.get("prop1").asString());
         assertTrue(jsonNode.has("prop2"));
-        assertEquals("value2", jsonNode.get("prop2").asText());
+        assertEquals("value2", jsonNode.get("prop2").asString());
     }
 }

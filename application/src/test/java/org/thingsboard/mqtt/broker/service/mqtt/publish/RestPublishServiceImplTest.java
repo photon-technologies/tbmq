@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.publish;
 
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.node.NullNode;
+import tools.jackson.databind.node.StringNode;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
@@ -411,7 +411,7 @@ class RestPublishServiceImplTest {
     private RestPublishRequest request(String payload, PayloadEncoding encoding) {
         RestPublishRequest request = new RestPublishRequest();
         request.setTopic(TOPIC);
-        request.setPayload(new TextNode(payload));
+        request.setPayload(new StringNode(payload));
         request.setPayloadEncoding(encoding);
         request.setQos(1);
         return request;

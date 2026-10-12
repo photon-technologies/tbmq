@@ -16,9 +16,8 @@
 package org.thingsboard.mqtt.broker.config;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.core.type.TypeReference;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverters;
@@ -249,9 +248,12 @@ public class SwaggerConfiguration {
     @Lazy(false)
     ModelConverter mapAwareConverter() {
         return (type, context, chain) -> {
+            var javaType = Json.mapper().constructType(type.getType());
+            if (javaType != null && JsonNode.class.isAssignableFrom(javaType.getRawClass())) {
+                return new Schema<>().$ref(Components.COMPONENTS_SCHEMAS_REF + "JsonNode");
+            }
             if (chain.hasNext()) {
                 Schema schema = chain.next().resolve(type, context, chain);
-                JavaType javaType = Json.mapper().constructType(type.getType());
                 if (javaType != null) {
                     Class<?> cls = javaType.getRawClass();
                     if (Map.class.isAssignableFrom(cls)) {
@@ -280,7 +282,7 @@ public class SwaggerConfiguration {
                 return null;
             }
             Schema schema = chain.next().resolve(type, context, chain);
-            JavaType javaType = Json.mapper().constructType(type.getType());
+            var javaType = Json.mapper().constructType(type.getType());
             JsonSubTypes subTypes = javaType != null ? javaType.getRawClass().getAnnotation(JsonSubTypes.class) : null;
             if (subTypes == null) {
                 return schema;
@@ -344,7 +346,7 @@ public class SwaggerConfiguration {
             var jsonNodeSchema = new Schema<>();
             jsonNodeSchema.setDescription("A value representing the any type (object or primitive)");
             //noinspection unchecked
-            jsonNodeSchema.setExamples(List.of(JacksonUtil.newObjectNode()));
+            jsonNodeSchema.setExamples(List.of(Map.of()));
             openAPI.getComponents().addSchemas("JsonNode", jsonNodeSchema);
             var sortedSchemas = new TreeMap<>(openAPI.getComponents().getSchemas());
             titleCollidingInlineOneOfs(sortedSchemas);
@@ -509,7 +511,7 @@ public class SwaggerConfiguration {
     }
 
     private static Example errorExample(String summary, ThingsboardErrorResponse example) {
-        ObjectNode value = (ObjectNode) JacksonUtil.valueToTree(example);
+        Map<String, Object> value = JacksonUtil.convertValue(example, new TypeReference<>() {});
         value.put("timestamp", EXAMPLE_TIMESTAMP);
         return new Example()
                 .summary(summary)

@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.client.credentials;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.Data;
@@ -179,7 +179,7 @@ public class MqttClientCredentialsBulkImportService {
                 case PASSWORD -> basic.setPassword(passwordEncoder.encode(value));
                 case SUB_AUTH_RULE_PATTERNS -> overwriteAuthRules(basic, value, true, delimiter);
                 case PUB_AUTH_RULE_PATTERNS -> overwriteAuthRules(basic, value, false, delimiter);
-                case DESCRIPTION -> additionalInfo.set("description", new TextNode(value));
+                case DESCRIPTION -> additionalInfo.set("description", new StringNode(value));
             }
             entity.setAdditionalInfo(additionalInfo);
         });

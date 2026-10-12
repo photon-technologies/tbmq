@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.entity.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -99,7 +99,7 @@ public class DefaultTbIntegrationService extends AbstractTbEntityService impleme
         JsonNode configuration = integration.getConfiguration();
         if (ClientLifecycleEventTypeUtil.isOptedIn(configuration)) {
             configuration.get(ClientLifecycleEventTypeUtil.LIFECYCLE_EVENT_TYPES_KEY)
-                    .forEach(node -> builder.addLifecycleEventTypes(node.asText()));
+                    .forEach(node -> builder.addLifecycleEventTypes(node.asString()));
         }
         return builder.build();
     }

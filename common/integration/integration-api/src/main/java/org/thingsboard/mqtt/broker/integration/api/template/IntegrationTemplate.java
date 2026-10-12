@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.integration.api.template;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -150,10 +150,10 @@ public final class IntegrationTemplate {
         if (placeholder.length == 2) {
             node = node != null && node.isObject() ? node.get(placeholder[1]) : null;
         }
-        if (node == null || node.isNull() || node.isContainerNode()) {
+        if (node == null || node.isNull() || node.isContainer()) {
             return null;
         }
-        String value = node.isTextual() ? node.asText() : node.toString();
+        String value = node.isString() ? node.asString() : node.toString();
         return value.isEmpty() ? null : value;
     }
 }

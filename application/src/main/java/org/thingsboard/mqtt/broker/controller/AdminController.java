@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -97,7 +97,7 @@ public class AdminController extends BaseController {
             if (!adminSettings.getJsonValue().hasNonNull("password")) {
                 AdminSettings mailSettings =
                         checkNotNull(adminSettingsService.findAdminSettingsByKey(SysAdminSettingType.MAIL.getKey()));
-                ((ObjectNode) adminSettings.getJsonValue()).put("password", mailSettings.getJsonValue().get("password").asText());
+                ((ObjectNode) adminSettings.getJsonValue()).put("password", mailSettings.getJsonValue().get("password").asString());
             }
             String email = getCurrentUser().getEmail();
             try {

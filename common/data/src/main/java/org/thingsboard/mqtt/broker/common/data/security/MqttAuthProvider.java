@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.common.data.security;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

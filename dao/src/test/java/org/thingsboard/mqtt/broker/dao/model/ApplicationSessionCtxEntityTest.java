@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.dao.model;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.Test;
 import org.thingsboard.mqtt.broker.common.data.ApplicationMsgInfo;
 import org.thingsboard.mqtt.broker.common.data.ApplicationMessageId;

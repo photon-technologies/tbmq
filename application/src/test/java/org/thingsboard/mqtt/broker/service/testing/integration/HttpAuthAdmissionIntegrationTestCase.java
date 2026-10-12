@@ -16,7 +16,7 @@
 package org.thingsboard.mqtt.broker.service.testing.integration;
 
 import com.sun.net.httpserver.HttpServer;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
@@ -161,9 +161,9 @@ public class HttpAuthAdmissionIntegrationTestCase extends AbstractPubSubIntegrat
             JsonNode body = requestBody.get();
             assertThat(body).isNotNull();
             assertThat(body.size()).isEqualTo(3);
-            assertThat(body.path("clientId").asText()).isEqualTo(id);
-            assertThat(body.path("username").asText()).isEqualTo(username);
-            assertThat(body.path("password").asText().getBytes(StandardCharsets.UTF_8)).isEqualTo(credential);
+            assertThat(body.path("clientId").asString()).isEqualTo(id);
+            assertThat(body.path("username").asString()).isEqualTo(username);
+            assertThat(body.path("password").asString().getBytes(StandardCharsets.UTF_8)).isEqualTo(credential);
             mqtt.disconnect();
         } finally {
             if (mqtt.isConnected()) mqtt.disconnectForcibly();

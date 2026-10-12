@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.actors.client.service;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

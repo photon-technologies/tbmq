@@ -15,16 +15,16 @@
  */
 package org.thingsboard.mqtt.broker.dao.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLJsonPGObjectJsonbType;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.thingsboard.mqtt.broker.common.data.ws.WebSocketConnection;
 import org.thingsboard.mqtt.broker.common.data.ws.WebSocketConnectionConfiguration;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
@@ -46,7 +46,7 @@ public class WebSocketConnectionEntity extends BaseSqlEntity<WebSocketConnection
     private UUID userId;
 
     @Convert(converter = JsonConverter.class)
-    @JdbcType(PostgreSQLJsonPGObjectJsonbType.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = ModelConstants.WEBSOCKET_CONNECTION_CONFIGURATION_PROPERTY, columnDefinition = "jsonb")
     private JsonNode configuration;
 

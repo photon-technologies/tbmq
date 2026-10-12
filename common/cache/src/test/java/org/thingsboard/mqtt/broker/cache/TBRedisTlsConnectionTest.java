@@ -18,7 +18,12 @@ package org.thingsboard.mqtt.broker.cache;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.transaction.TransactionAwareCacheDecorator;
+import org.springframework.data.redis.cache.RedisCache;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,11 +32,17 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.thingsboard.mqtt.broker.common.data.security.MqttClientCredentials;
+import org.thingsboard.mqtt.broker.common.util.JacksonUtil;
+import tools.jackson.databind.exc.InvalidTypeIdException;
+import tools.jackson.databind.node.ObjectNode;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -40,6 +51,7 @@ import java.security.cert.X509Certificate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration test that verifies TBMQ can connect to a TLS-enabled Redis/Valkey instance.
@@ -154,6 +166,9 @@ public class TBRedisTlsConnectionTest {
     @Autowired
     RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    CacheManager cacheManager;
+
     @Test
     void givenTlsEnabledValkey_whenPingViaLettuce_thenReturnsPong() {
         try (RedisConnection connection = lettuceConnectionFactory.getConnection()) {
@@ -169,4 +184,52 @@ public class TBRedisTlsConnectionTest {
         redisTemplate.delete(testKey);
     }
 
+    @Test
+    void givenTlsCache_whenStoreCredentialDto_thenRestoreTypeAndNestedJson() {
+        Cache cache = cacheManager.getCache("mqttClientCredentials");
+        assertThat(cache).isNotNull();
+        MqttClientCredentials original = new MqttClientCredentials();
+        original.setName("qualification-json-contract");
+        ObjectNode info = JacksonUtil.newObjectNode().put("device_ts", 1791813600123456L).put("label", "غرفة");
+        info.putArray("paths").add("0/6/0").add("0/8/0");
+        original.setAdditionalInfo(info);
+        String key = "json-contract-dto";
+        try {
+            cache.put(key, original);
+            MqttClientCredentials restored = cache.get(key, MqttClientCredentials.class);
+            assertThat(restored).isNotNull();
+            assertThat(restored.getName()).isEqualTo(original.getName());
+            assertThat(restored.getAdditionalInfo()).isEqualTo(info);
+            assertThat(restored.getAdditionalInfo().get("device_ts").longValue()).isEqualTo(1791813600123456L);
+        } finally {
+            cache.evict(key);
+        }
+    }
+
+    @Test
+    void givenTlsCache_whenStoreNegativeLookup_thenRetainCachedNull() {
+        Cache cache = cacheManager.getCache("mqttClientCredentials");
+        assertThat(cache).isNotNull();
+        String key = "json-contract-null";
+        try {
+            cache.put(key, null);
+            Cache.ValueWrapper restored = cache.get(key);
+            assertThat(restored).isNotNull();
+            assertThat(restored.get()).isNull();
+        } finally {
+            cache.evict(key);
+        }
+    }
+    @Test
+    void givenCacheSerializer_whenPayloadNamesAnUnapprovedType_thenRejectIt() {
+        Cache cache = cacheManager.getCache("mqttClientCredentials");
+        assertThat(cache).isInstanceOf(TransactionAwareCacheDecorator.class);
+        RedisCache redisCache = (RedisCache) ((TransactionAwareCacheDecorator) cache).getTargetCache();
+        var serialization = redisCache.getCacheConfiguration().getValueSerializationPair();
+        ByteBuffer payload = ByteBuffer.wrap("[\"java.io.File\",\"blocked\"]"
+                .getBytes(StandardCharsets.UTF_8));
+        assertThatThrownBy(() -> serialization.read(payload))
+                .isInstanceOf(SerializationException.class)
+                .hasRootCauseInstanceOf(InvalidTypeIdException.class);
+    }
 }

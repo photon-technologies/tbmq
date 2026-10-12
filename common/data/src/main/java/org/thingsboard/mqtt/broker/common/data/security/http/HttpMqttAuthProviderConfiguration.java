@@ -16,6 +16,7 @@
 package org.thingsboard.mqtt.broker.common.data.security.http;
 
 import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,7 +36,7 @@ import java.util.Map;
 
 @Data
 @Builder
-@NoArgsConstructor
+@NoArgsConstructor(onConstructor_ = @JsonCreator)
 @AllArgsConstructor
 public class HttpMqttAuthProviderConfiguration implements MqttAuthProviderConfiguration, SinglePubSubAuthRulesAware {
 

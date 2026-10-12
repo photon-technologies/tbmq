@@ -15,16 +15,17 @@
  */
 package org.thingsboard.mqtt.broker.common.data.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ClientLifecycleEventTypeUtilTest {
 
-    static final ObjectMapper MAPPER = new ObjectMapper();
+    static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     @Test
     void givenConfigWithEventTypes_whenIsOptedIn_thenTrue() {

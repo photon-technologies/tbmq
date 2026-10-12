@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.install.data;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.thingsboard.mqtt.broker.common.data.AdminSettings;
 import org.thingsboard.mqtt.broker.common.data.SysAdminSettingType;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;

@@ -16,14 +16,13 @@
 package org.thingsboard.mqtt.broker.common.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.thingsboard.mqtt.broker.common.data.validation.NoXss;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.Serial;
 import java.util.Arrays;
 import java.util.Objects;
@@ -113,7 +112,7 @@ public abstract class BaseDataWithAdditionalInfo extends BaseData implements Has
             if (data != null) {
                 try {
                     return mapper.readTree(new ByteArrayInputStream(data));
-                } catch (IOException e) {
+                } catch (JacksonException e) {
                     log.warn("Can't deserialize json data: ", e);
                     return null;
                 }
@@ -127,7 +126,7 @@ public abstract class BaseDataWithAdditionalInfo extends BaseData implements Has
         jsonConsumer.accept(json);
         try {
             bytesConsumer.accept(mapper.writeValueAsBytes(json));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Can't serialize json data: ", e);
         }
     }

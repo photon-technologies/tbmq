@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.runner.RunWith;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;

@@ -15,9 +15,10 @@
  */
 package org.thingsboard.mqtt.broker.controller;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.http.MockHttpOutputMessage;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,6 +46,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 import org.thingsboard.mqtt.broker.AbstractPubSubIntegrationTest;
 import org.thingsboard.mqtt.broker.common.data.page.PageLink;
 import org.thingsboard.mqtt.broker.config.SecurityConfiguration;
@@ -54,7 +56,6 @@ import org.thingsboard.mqtt.broker.service.security.model.token.JwtTokenFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -87,7 +88,7 @@ public abstract class AbstractWebTest extends AbstractPubSubIntegrationTest {
     protected String username;
 
     @SuppressWarnings("rawtypes")
-    private HttpMessageConverter mappingJackson2HttpMessageConverter;
+    private HttpMessageConverter jacksonJsonHttpMessageConverter;
 
     @SuppressWarnings("rawtypes")
     private HttpMessageConverter stringHttpMessageConverter;
@@ -109,20 +110,20 @@ public abstract class AbstractWebTest extends AbstractPubSubIntegrationTest {
     };
 
     @Autowired
-    void setConverters(HttpMessageConverter<?>[] converters) {
+    void setConverters(RequestMappingHandlerAdapter handlerAdapter) {
 
-        this.mappingJackson2HttpMessageConverter = Arrays.stream(converters)
-                .filter(hmc -> hmc instanceof MappingJackson2HttpMessageConverter)
+        this.jacksonJsonHttpMessageConverter = handlerAdapter.getMessageConverters().stream()
+                .filter(hmc -> hmc instanceof JacksonJsonHttpMessageConverter)
                 .findAny()
                 .get();
 
-        this.stringHttpMessageConverter = Arrays.stream(converters)
+        this.stringHttpMessageConverter = handlerAdapter.getMessageConverters().stream()
                 .filter(hmc -> hmc instanceof StringHttpMessageConverter)
                 .findAny()
                 .get();
 
         Assert.assertNotNull("the JSON message converter must not be null",
-                this.mappingJackson2HttpMessageConverter);
+                this.jacksonJsonHttpMessageConverter);
     }
 
     @Before
@@ -175,8 +176,8 @@ public abstract class AbstractWebTest extends AbstractPubSubIntegrationTest {
         Assert.assertNotNull(tokenInfo);
         Assert.assertTrue(tokenInfo.has("token"));
         Assert.assertTrue(tokenInfo.has("refreshToken"));
-        String token = tokenInfo.get("token").asText();
-        String refreshToken = tokenInfo.get("refreshToken").asText();
+        String token = tokenInfo.get("token").asString();
+        String refreshToken = tokenInfo.get("refreshToken").asString();
         validateJwtToken(token, username);
         validateJwtToken(refreshToken, username);
         this.token = token;
@@ -347,7 +348,7 @@ public abstract class AbstractWebTest extends AbstractPubSubIntegrationTest {
     protected String json(Object o) throws IOException {
         MockHttpOutputMessage mockHttpOutputMessage = new MockHttpOutputMessage();
 
-        HttpMessageConverter converter = o instanceof String ? stringHttpMessageConverter : mappingJackson2HttpMessageConverter;
+        HttpMessageConverter converter = o instanceof String ? stringHttpMessageConverter : jacksonJsonHttpMessageConverter;
         converter.write(o, MediaType.APPLICATION_JSON, mockHttpOutputMessage);
         return mockHttpOutputMessage.getBodyAsString();
     }
@@ -356,13 +357,13 @@ public abstract class AbstractWebTest extends AbstractPubSubIntegrationTest {
     protected <T> T readResponse(ResultActions result, Class<T> responseClass) throws Exception {
         byte[] content = result.andReturn().getResponse().getContentAsByteArray();
         MockHttpInputMessage mockHttpInputMessage = new MockHttpInputMessage(content);
-        HttpMessageConverter converter = responseClass.equals(String.class) ? stringHttpMessageConverter : mappingJackson2HttpMessageConverter;
+        HttpMessageConverter converter = responseClass.equals(String.class) ? stringHttpMessageConverter : jacksonJsonHttpMessageConverter;
         return (T) converter.read(responseClass, mockHttpInputMessage);
     }
 
     protected <T> T readResponse(ResultActions result, TypeReference<T> type) throws Exception {
         byte[] content = result.andReturn().getResponse().getContentAsByteArray();
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         return mapper.readerFor(type).readValue(content);
     }
 

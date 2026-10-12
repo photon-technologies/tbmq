@@ -15,9 +15,9 @@
  */
 package org.thingsboard.mqtt.broker.service.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -142,7 +142,7 @@ public class DefaultPlatformIntegrationService implements PlatformIntegrationSer
             ArrayNode topicFiltersArrayNode = (ArrayNode) topicFilters;
 
             Set<TopicSubscription> subscriptions = Sets.newHashSetWithExpectedSize(topicFiltersArrayNode.size());
-            topicFiltersArrayNode.forEach(topicFilter -> subscriptions.add(new IntegrationTopicSubscription(topicFilter.asText())));
+            topicFiltersArrayNode.forEach(topicFilter -> subscriptions.add(new IntegrationTopicSubscription(topicFilter.asString())));
             integrationSubscriptionUpdateService.processSubscriptionsUpdate(integration.getIdStr(), subscriptions);
         } else {
             integrationSubscriptionUpdateService.clearSubscriptions(integration.getIdStr());

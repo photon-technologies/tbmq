@@ -19,7 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.thingsboard.mqtt.broker.common.data.integration.IntegrationType;
@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ContextConfiguration(classes = ServiceInfoProviderImpl.class)
 class ServiceInfoProviderImplTest {
 
-    @SpyBean
+    @MockitoSpyBean
     private ServiceInfoProviderImpl serviceInfoProvider;
 
     @BeforeEach

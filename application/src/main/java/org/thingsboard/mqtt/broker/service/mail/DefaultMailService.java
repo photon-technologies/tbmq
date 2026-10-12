@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.mail;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import jakarta.annotation.PostConstruct;
@@ -78,7 +78,7 @@ public class DefaultMailService implements MailService {
         if (settings != null) {
             JsonNode jsonConfig = settings.getJsonValue();
             mailSender = createMailSender(jsonConfig);
-            mailFrom = jsonConfig.get("mailFrom").asText();
+            mailFrom = jsonConfig.get("mailFrom").asString();
             timeout = jsonConfig.get("timeout").asLong(DEFAULT_TIMEOUT);
         } else {
             throw new IncorrectParameterException("Failed to update mail configuration. Settings not found!");
@@ -131,7 +131,7 @@ public class DefaultMailService implements MailService {
     @Override
     public void sendTestMail(JsonNode jsonConfig, String email) throws ThingsboardException {
         JavaMailSenderImpl testMailSender = createMailSender(jsonConfig);
-        String mailFrom = jsonConfig.get("mailFrom").asText();
+        String mailFrom = jsonConfig.get("mailFrom").asString();
         String subject = messages.getMessage("test.message.subject", null, Locale.US);
         long timeout = jsonConfig.get("timeout").asLong(DEFAULT_TIMEOUT);
 
@@ -155,33 +155,33 @@ public class DefaultMailService implements MailService {
 
     private JavaMailSenderImpl createMailSender(JsonNode jsonConfig) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost(jsonConfig.get("smtpHost").asText());
-        mailSender.setPort(parsePort(jsonConfig.get("smtpPort").asText()));
-        mailSender.setUsername(jsonConfig.get("username").asText());
-        mailSender.setPassword(jsonConfig.get("password").asText());
+        mailSender.setHost(jsonConfig.get("smtpHost").asString());
+        mailSender.setPort(parsePort(jsonConfig.get("smtpPort").asString()));
+        mailSender.setUsername(jsonConfig.get("username").asString());
+        mailSender.setPassword(jsonConfig.get("password").asString());
         mailSender.setJavaMailProperties(createJavaMailProperties(jsonConfig));
         return mailSender;
     }
 
     private Properties createJavaMailProperties(JsonNode jsonConfig) {
         Properties javaMailProperties = new Properties();
-        String protocol = jsonConfig.get("smtpProtocol").asText();
+        String protocol = jsonConfig.get("smtpProtocol").asString();
         javaMailProperties.put("mail.transport.protocol", protocol);
-        javaMailProperties.put(MAIL_PROP + protocol + ".host", jsonConfig.get("smtpHost").asText());
-        javaMailProperties.put(MAIL_PROP + protocol + ".port", jsonConfig.get("smtpPort").asText());
-        javaMailProperties.put(MAIL_PROP + protocol + ".timeout", jsonConfig.get("timeout").asText());
-        javaMailProperties.put(MAIL_PROP + protocol + ".auth", String.valueOf(StringUtils.isNotEmpty(jsonConfig.get("username").asText())));
+        javaMailProperties.put(MAIL_PROP + protocol + ".host", jsonConfig.get("smtpHost").asString());
+        javaMailProperties.put(MAIL_PROP + protocol + ".port", jsonConfig.get("smtpPort").asString());
+        javaMailProperties.put(MAIL_PROP + protocol + ".timeout", jsonConfig.get("timeout").asString());
+        javaMailProperties.put(MAIL_PROP + protocol + ".auth", String.valueOf(StringUtils.isNotEmpty(jsonConfig.get("username").asString())));
         boolean enableTls = false;
         if (jsonConfig.has("enableTls")) {
             if (jsonConfig.get("enableTls").isBoolean() && jsonConfig.get("enableTls").booleanValue()) {
                 enableTls = true;
-            } else if (jsonConfig.get("enableTls").isTextual()) {
-                enableTls = "true".equalsIgnoreCase(jsonConfig.get("enableTls").asText());
+            } else if (jsonConfig.get("enableTls").isString()) {
+                enableTls = "true".equalsIgnoreCase(jsonConfig.get("enableTls").asString());
             }
         }
         javaMailProperties.put(MAIL_PROP + protocol + ".starttls.enable", enableTls);
         if (enableTls && jsonConfig.has("tlsVersion") && !jsonConfig.get("tlsVersion").isNull()) {
-            String tlsVersion = jsonConfig.get("tlsVersion").asText();
+            String tlsVersion = jsonConfig.get("tlsVersion").asString();
             if (StringUtils.isNoneEmpty(tlsVersion)) {
                 javaMailProperties.put(MAIL_PROP + protocol + ".ssl.protocols", tlsVersion);
             }
@@ -190,13 +190,13 @@ public class DefaultMailService implements MailService {
         boolean enableProxy = jsonConfig.has("enableProxy") && jsonConfig.get("enableProxy").asBoolean();
 
         if (enableProxy) {
-            javaMailProperties.put(MAIL_PROP + protocol + ".proxy.host", jsonConfig.get("proxyHost").asText());
-            javaMailProperties.put(MAIL_PROP + protocol + ".proxy.port", jsonConfig.get("proxyPort").asText());
-            String proxyUser = jsonConfig.get("proxyUser").asText();
+            javaMailProperties.put(MAIL_PROP + protocol + ".proxy.host", jsonConfig.get("proxyHost").asString());
+            javaMailProperties.put(MAIL_PROP + protocol + ".proxy.port", jsonConfig.get("proxyPort").asString());
+            String proxyUser = jsonConfig.get("proxyUser").asString();
             if (StringUtils.isNoneEmpty(proxyUser)) {
                 javaMailProperties.put(MAIL_PROP + protocol + ".proxy.user", proxyUser);
             }
-            String proxyPassword = jsonConfig.get("proxyPassword").asText();
+            String proxyPassword = jsonConfig.get("proxyPassword").asString();
             if (StringUtils.isNoneEmpty(proxyPassword)) {
                 javaMailProperties.put(MAIL_PROP + protocol + ".proxy.password", proxyPassword);
             }

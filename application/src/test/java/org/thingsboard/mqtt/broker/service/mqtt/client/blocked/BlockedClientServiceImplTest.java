@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.mqtt.client.blocked;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.common.util.JacksonUtil;

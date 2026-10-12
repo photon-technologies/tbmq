@@ -99,98 +99,47 @@ public class DeviceMsgServiceTest extends AbstractServiceTest {
     }
 
     @Test
-    public void testSaveAndGetMessages() throws InterruptedException {
+    public void testSaveAndGetMessages() throws Exception {
         var devicePublishMsgs = getDevicePublishMsgs(10);
+        var previousPacketId = deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, devicePublishMsgs, false)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS);
+        assertThat(previousPacketId).isEqualTo(0);
 
-        var saveAndReturnPreviousPacketIdLatch = new CountDownLatch(1);
-        deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, devicePublishMsgs, false).whenComplete((prevPacketId, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(prevPacketId).isEqualTo(0);
-            saveAndReturnPreviousPacketIdLatch.countDown();
-        });
-        assertThat(saveAndReturnPreviousPacketIdLatch.await(2, TimeUnit.SECONDS)).isTrue();
+        previousPacketId = deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, getDevicePublishMsgs(5), false)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS);
+        assertThat(previousPacketId).isEqualTo(10);
+        assertThat(deviceMsgService.getLastPacketId(TEST_CLIENT_ID).toCompletableFuture().get(2, TimeUnit.SECONDS))
+                .isEqualTo(15);
 
-        devicePublishMsgs = getDevicePublishMsgs(5);
-
-        var secondSaveAndReturnPreviousPacketIdLatch = new CountDownLatch(1);
-        deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, devicePublishMsgs, false).whenComplete((prevPacketId, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(prevPacketId).isEqualTo(10);
-            secondSaveAndReturnPreviousPacketIdLatch.countDown();
-        });
-        assertThat(secondSaveAndReturnPreviousPacketIdLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var getLatch = new CountDownLatch(1);
-        deviceMsgService.getLastPacketId(TEST_CLIENT_ID).whenComplete((lastPacketId, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(lastPacketId).isEqualTo(15);
-            getLatch.countDown();
-        });
-        assertThat(getLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var findLatch = new CountDownLatch(1);
-        deviceMsgService.findPersistedMessages(TEST_CLIENT_ID).whenComplete((persistedMsgs, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(persistedMsgs).isNotNull().isNotEmpty().hasSize(10);
-            List<Integer> packetIds = persistedMsgs.stream().map(DevicePublishMsg::getPacketId).sorted().toList();
-
-            int expectedPacketId = 6;
-            for (int packetId : packetIds) {
-                assertThat(packetId).isEqualTo(expectedPacketId);
-                expectedPacketId++;
-            }
-            findLatch.countDown();
-        });
-        assertThat(findLatch.await(2, TimeUnit.SECONDS)).isTrue();
+        var persistedMsgs = deviceMsgService.findPersistedMessages(TEST_CLIENT_ID)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS);
+        assertThat(persistedMsgs).isNotNull().isNotEmpty().hasSize(10);
+        List<Integer> packetIds = persistedMsgs.stream().map(DevicePublishMsg::getPacketId).sorted().toList();
+        int expectedPacketId = 6;
+        for (int packetId : packetIds) {
+            assertThat(packetId).isEqualTo(expectedPacketId++);
+        }
     }
 
     @Test
-    public void testUpdateAndRemoveMessage() throws InterruptedException {
+    public void testUpdateAndRemoveMessage() throws Exception {
         var msg = newDevicePublishMsgWithBlankPacketId();
         assertThat(msg.getPacketType()).isEqualTo(PersistedPacketType.PUBLISH);
+        assertThat(deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, List.of(msg), false)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS)).isEqualTo(0);
+        assertThat(deviceMsgService.updatePacketReceived(TEST_CLIENT_ID, 1)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS)).isEqualTo("OK");
 
-        var saveAndReturnPreviousPacketIdLatch = new CountDownLatch(1);
-        deviceMsgService.saveAndReturnPreviousPacketId(TEST_CLIENT_ID, List.of(msg), false).whenComplete((prevPacketId, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(prevPacketId).isEqualTo(0);
-            saveAndReturnPreviousPacketIdLatch.countDown();
-        });
-        assertThat(saveAndReturnPreviousPacketIdLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var updateLatch = new CountDownLatch(1);
-        deviceMsgService.updatePacketReceived(TEST_CLIENT_ID, 1).whenComplete((status, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(status).isEqualTo("OK");
-            updateLatch.countDown();
-        });
-        assertThat(updateLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var findLatch = new CountDownLatch(1);
-        deviceMsgService.findPersistedMessages(TEST_CLIENT_ID).whenComplete((persistedMsgs, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(persistedMsgs).isNotNull().isNotEmpty().hasSize(1);
-            DevicePublishMsg updatedMsg = persistedMsgs.get(0);
-            assertThat(updatedMsg.getPacketId()).isEqualTo(1);
-            assertThat(updatedMsg.getPacketType()).isEqualTo(PersistedPacketType.PUBREL);
-            findLatch.countDown();
-        });
-        assertThat(findLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var removeLatch = new CountDownLatch(1);
-        deviceMsgService.removePersistedMessage(TEST_CLIENT_ID, 1).whenComplete((status, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(status).isEqualTo("OK");
-            removeLatch.countDown();
-        });
-        assertThat(removeLatch.await(2, TimeUnit.SECONDS)).isTrue();
-
-        var secondFindLatch = new CountDownLatch(1);
-        deviceMsgService.findPersistedMessages(TEST_CLIENT_ID).whenComplete((persistedMsgs, throwable) -> {
-            assertThat(throwable).isNull();
-            assertThat(persistedMsgs).isEmpty();
-            secondFindLatch.countDown();
-        });
-        assertThat(secondFindLatch.await(2, TimeUnit.SECONDS)).isTrue();
+        var persistedMsgs = deviceMsgService.findPersistedMessages(TEST_CLIENT_ID)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS);
+        assertThat(persistedMsgs).isNotNull().isNotEmpty().hasSize(1);
+        DevicePublishMsg updatedMsg = persistedMsgs.get(0);
+        assertThat(updatedMsg.getPacketId()).isEqualTo(1);
+        assertThat(updatedMsg.getPacketType()).isEqualTo(PersistedPacketType.PUBREL);
+        assertThat(deviceMsgService.removePersistedMessage(TEST_CLIENT_ID, 1)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS)).isEqualTo("OK");
+        assertThat(deviceMsgService.findPersistedMessages(TEST_CLIENT_ID)
+                .toCompletableFuture().get(2, TimeUnit.SECONDS)).isEmpty();
     }
 
     @Test

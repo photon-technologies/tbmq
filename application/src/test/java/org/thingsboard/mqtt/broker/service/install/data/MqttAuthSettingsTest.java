@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.service.install.data;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.common.data.AdminSettings;
 import org.thingsboard.mqtt.broker.common.data.SysAdminSettingType;

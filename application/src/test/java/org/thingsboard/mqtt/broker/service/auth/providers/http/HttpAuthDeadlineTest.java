@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.auth.providers.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.Test;
 import org.springframework.http.ResponseEntity;

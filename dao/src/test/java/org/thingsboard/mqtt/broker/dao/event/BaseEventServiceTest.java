@@ -71,7 +71,7 @@ public class BaseEventServiceTest extends AbstractServiceTest {
         List<EventInfo> loaded = eventService.findLatestEvents(entityId, event.getType(), 1);
         Assert.assertNotNull(loaded);
         Assert.assertEquals(1, loaded.size());
-        Assert.assertEquals("TEST", loaded.get(0).getBody().get("event").asText());
+        Assert.assertEquals("TEST", loaded.get(0).getBody().get("event").asString());
     }
 
     @Test

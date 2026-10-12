@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.service.mail;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.thingsboard.mqtt.broker.common.data.exception.ThingsboardException;
 
 public interface MailService {

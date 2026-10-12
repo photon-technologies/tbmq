@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.dao.settings;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import tools.jackson.core.type.TypeReference;
 import org.thingsboard.mqtt.broker.common.data.AdminSettings;
 import org.thingsboard.mqtt.broker.common.data.BrokerConstants;
 import org.thingsboard.mqtt.broker.common.data.util.StringUtils;

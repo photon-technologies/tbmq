@@ -15,7 +15,7 @@
  */
 package org.thingsboard.mqtt.broker.integration.service.integration.http;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.SslContext;
@@ -47,7 +47,6 @@ import javax.net.ssl.SSLException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -221,7 +220,7 @@ public class TbHttpClient {
         log.warn("[{}][{}] processException {}", getId(), getName(), result, e);
     }
 
-    void headersToMetaData(Map<String, List<String>> headers, BiConsumer<String, String> consumer) {
+    void headersToMetaData(HttpHeaders headers, BiConsumer<String, String> consumer) {
         if (headers == null) {
             return;
         }

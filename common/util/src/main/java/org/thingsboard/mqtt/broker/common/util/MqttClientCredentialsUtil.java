@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.common.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.thingsboard.mqtt.broker.common.data.client.credentials.BasicMqttCredentials;
 import org.thingsboard.mqtt.broker.common.data.dto.ShortMqttClientCredentials;
 import org.thingsboard.mqtt.broker.common.data.security.MqttClientCredentials;

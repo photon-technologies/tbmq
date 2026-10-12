@@ -15,8 +15,8 @@
  */
 package org.thingsboard.mqtt.broker.integration.api;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.thingsboard.mqtt.broker.gen.integration.ClientLifecycleEventMsgProto;
@@ -86,8 +86,8 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setTbmqNode("tbmq-1")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("ie-1", body.get("tbmqIeNode").asText());
-        assertEquals("tbmq-1", body.get("tbmqNode").asText());
+        assertEquals("ie-1", body.get("tbmqIeNode").asString());
+        assertEquals("tbmq-1", body.get("tbmqNode").asString());
     }
 
     // ── COMMON: username present in every event type ──────────────────────────
@@ -100,7 +100,7 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setUsername("alice")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("alice", body.get("username").asText());
+        assertEquals("alice", body.get("username").asString());
     }
 
     @Test
@@ -116,8 +116,8 @@ public class AbstractIntegrationLifecycleBodyTest {
         // no X.509 auth => no clientCertCn
         assertFalse(body.has("clientCertCn"));
         // the discriminator and populated fields stay present
-        assertEquals("CLIENT_CONNECTED", body.get("eventType").asText());
-        assertEquals("c1", body.get("clientId").asText());
+        assertEquals("CLIENT_CONNECTED", body.get("eventType").asString());
+        assertEquals("c1", body.get("clientId").asString());
     }
 
     // ── COMMON: clientCertCn present for X.509-authenticated clients ──────────
@@ -130,7 +130,7 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setClientCertCn("device-42")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("device-42", body.get("clientCertCn").asText());
+        assertEquals("device-42", body.get("clientCertCn").asString());
     }
 
     // ── CLIENT_CONNECTED: protocolVersion + sessionExpiryInterval ────────────
@@ -165,8 +165,8 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setReason("Bad credentials")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("baduser", body.get("username").asText());
-        assertEquals("Bad credentials", body.get("reason").asText());
+        assertEquals("baduser", body.get("username").asString());
+        assertEquals("Bad credentials", body.get("reason").asString());
     }
 
     @Test
@@ -193,9 +193,9 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setTopic("zxc/demo/topic")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("demo", body.get("username").asText());
-        assertEquals("publish", body.get("action").asText());
-        assertEquals("zxc/demo/topic", body.get("topic").asText());
+        assertEquals("demo", body.get("username").asString());
+        assertEquals("publish", body.get("action").asString());
+        assertEquals("zxc/demo/topic", body.get("topic").asString());
     }
 
     // ── CLIENT_CONNECTION_FAILED ──────────────────────────────────────────────
@@ -208,7 +208,7 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .setReason("QUOTA_EXCEEDED")
                 .build();
         ObjectNode body = integration.body(msg);
-        assertEquals("QUOTA_EXCEEDED", body.get("reason").asText());
+        assertEquals("QUOTA_EXCEEDED", body.get("reason").asString());
     }
 
     // ── CLIENT_SUBSCRIBED: full subscription details ──────────────────────────
@@ -232,13 +232,13 @@ public class AbstractIntegrationLifecycleBodyTest {
                 .build();
         ObjectNode body = integration.body(msg);
         JsonNode sub = body.get("subscriptions").get(0);
-        assertEquals("foo/bar", sub.get("topicFilter").asText());
+        assertEquals("foo/bar", sub.get("topicFilter").asString());
         assertEquals(1, sub.get("qos").asInt());
-        assertEquals("g1", sub.get("shareName").asText());
+        assertEquals("g1", sub.get("shareName").asString());
         assertEquals(7, sub.get("subscriptionId").asInt());
         assertTrue(sub.get("options").get("noLocal").asBoolean());
         assertTrue(sub.get("options").get("retainAsPublish").asBoolean());
-        assertEquals("DONT_SEND", sub.get("options").get("retainHandling").asText());
+        assertEquals("DONT_SEND", sub.get("options").get("retainHandling").asString());
     }
 
     @Test
@@ -256,7 +256,7 @@ public class AbstractIntegrationLifecycleBodyTest {
         JsonNode sub = body.get("subscriptions").get(0);
         assertFalse(sub.has("shareName"));
         assertFalse(sub.has("subscriptionId"));
-        assertEquals("SEND", sub.get("options").get("retainHandling").asText());
+        assertEquals("SEND", sub.get("options").get("retainHandling").asString());
     }
 
     @Test
@@ -271,11 +271,11 @@ public class AbstractIntegrationLifecycleBodyTest {
         JsonNode subs = body.get("subscriptions");
         assertEquals(2, subs.size());
         // regular unsubscribe: bare topic filter, no shareName
-        assertEquals("foo/bar", subs.get(0).get("topicFilter").asText());
+        assertEquals("foo/bar", subs.get(0).get("topicFilter").asString());
         assertFalse(subs.get(0).has("shareName"));
         // shared unsubscribe: bare filter + shareName so $share/g1/baz can be reconstructed
-        assertEquals("baz", subs.get(1).get("topicFilter").asText());
-        assertEquals("g1", subs.get(1).get("shareName").asText());
+        assertEquals("baz", subs.get(1).get("topicFilter").asString());
+        assertEquals("g1", subs.get(1).get("shareName").asString());
         // an UNSUBSCRIBE names filters only — no qos/options/subscriptionId
         assertFalse(subs.get(0).has("qos"));
         assertFalse(subs.get(0).has("options"));
@@ -310,7 +310,7 @@ public class AbstractIntegrationLifecycleBodyTest {
         // so JSON-native transports like HTTP can forward it as application/json rather than a text/plain String.
         assertNotNull(integration.capturedLifecycleBody);
         assertEquals(integration.body(msg), integration.capturedLifecycleBody);
-        assertEquals("alice", integration.capturedLifecycleBody.get("username").asText());
+        assertEquals("alice", integration.capturedLifecycleBody.get("username").asString());
         assertTrue(succeeded.get());
     }
 
