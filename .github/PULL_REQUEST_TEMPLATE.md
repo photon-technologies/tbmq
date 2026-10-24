@@ -23,3 +23,13 @@ Put your PR description here instead of this sentence.
 - [ ] Added corresponding unit and/or integration test(s). Provide written explanation in the PR description if you have failed to add tests.
 - [ ] If new dependency was added: the dependency tree is checked for conflicts.
 
+
+## Scaling guardrails
+
+- [ ] HTTP authentication keeps explicit-verdict semantics (only an explicit SUCCESS admits), and the admission matrix was re-run.
+- [ ] New Kafka consumer groups set `auto.offset.reset` explicitly; publish-message consumers use `earliest`.
+- [ ] No guarded value is weakened (JVM sizing, shared-subscription partitions, auth pool bounds); if one changes, the PR gives the measurement and the scale it was proven at.
+- [ ] No new unbounded queue, cache, retry or metric label.
+- [ ] Base-image changes keep a digest pin and both architectures; no new HIGH/CRITICAL waiver.
+
+See SCALING-GUARDRAILS.md.
