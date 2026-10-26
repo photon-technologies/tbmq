@@ -1,20 +1,20 @@
 # Scaling and production guardrails
 
-Proven in the October 2026 qualification at 10K, 15K and 100K devices. Change a value only with new measured evidence.
+This guidance combines dated October 2026 campaign measurements, source defaults and requirements. Preserve each evidence class; a source default or recommendation is not a new capacity or rollout result.
 
-## Platform-wide rules (identical in every Photon repo)
+## Platform-wide rules
 
-These held the platform at 10K, 15K and 100K devices in the October 2026 qualification campaign, on AWS Graviton and on k3s dev. A change that weakens one needs a measured reason in the PR and new evidence at the scale it affects.
+These rules draw on the dated campaign evidence below. Keep measurements, source configuration, inferred requirements and unverified adoption distinct; weakening a measured limit needs a reason and evidence at the affected scale.
 
-- **A merge to `dev` is a deployment.** Each merge is followed by its deploy run, a rollout check, pods Ready with 0 restarts, migrations, logs compared with the baseline, and one functional check. Merges go one at a time. If something fails, roll that step back; never leave dev broken.
+- **Follow runtime changes through deployment.** A runtime/config merge to `dev` starts the configured CI/GitOps path; markdown/docs-only changes may be skipped by `paths-ignore`. Check the deploy run, immutable image revision, infrastructure bump, Argo sync, ready non-terminating pods, migrations, logs and a functional check. A merge or green source check alone does not establish what is running. Keep staging promotion separately authorized.
 - **No unbounded growth.** Every query has a page size or deadline. Every Kafka topic has an age and size bound. Every ClickHouse history table has a TTL. Every log group has a retention. Every metric label has a finite vocabulary. Every cache has a TTL or a size bound. Every retry has a cap.
-- **Time is epoch microseconds end to end** (`device_ts`, `deviceTs`, ClickHouse `DateTime64(6)`). Never a millisecond type, a unit guess or a tolerance band.
+- **Device time is epoch microseconds end to end** (`device_ts`, `deviceTs`, ClickHouse `DateTime64(6)`). Never a millisecond type, a unit guess or a tolerance band.
 - **One transport and one record.**
   - MQTT goes through TBMQ; RabbitMQ is retired.
   - Current device state lives in State (Valkey: durable, `noeviction`).
   - There are no compacted Kafka state topics, and no ClickHouse current-state tables.
-- **Connection budgets are sums.** For every PostgreSQL user, (pool max × maximum replicas) + 2 transient slots + admin reserve must fit `max_connections`. Pools never renew in lock-step: no short identical max lifetimes. Core runs a 24 h max lifetime.
-- **Per-caller rate limits are sized for aggregating callers, not for users.** The State API is 600/s with a burst of 1,200 per caller per pod. 200/s caused 20,258 HTTP 503s at 100K.
+- **Connection budgets sum every live pool instance.** For each PostgreSQL user, sum `(pool maximum × peak concurrent pool instances)` across every pool in every service/job sharing that user, then add required non-pool and separately counted transient connections. Include rollout surge, overlapping old/new pods and concurrent migration connection-sets; HPA maximum alone is not the rolling-deployment peak. If a budget defines `transient=2` as two extra pool/replica equivalents, multiply those sets by the applicable pool maxima: they are not two individual connections, and must not be counted twice. Fit each user's applicable connection limit, and fit the sum across all users plus the admin reserve within the database's `max_connections`. Pools never renew in lock-step: no short identical max lifetimes. Core runs a 24 h max lifetime.
+- **Size quotas for their authenticated caller.** Internal service callers aggregate many users; public user budgets remain isolated by authenticated issuer/subject. Fixed metric labels are not quota identities. State has an in-process bucket per allowlisted `azp` per pod: 600/s with burst 1,200. At 200/s, 100K r18 produced 20,258 HTTP 503s. Its total capacity changes with replicas. A shared global limiter requires a separately measured aggregate budget; neither copying the per-pod value nor multiplying a public quota by HPA maximum establishes safety.
 - **One scaling owner per workload.**
   - HPA on CPU for serving pods.
   - KEDA on Kafka lag for consumers.
@@ -26,6 +26,7 @@ These held the platform at 10K, 15K and 100K devices in the October 2026 qualifi
   - Metric and tag names that dashboards and alerts use are never renamed silently.
   - `service.instance.id` stays per pod.
   - Client aborts are logged as cancelled, not as 500.
+  - Terminal-log caps are an adoption requirement, not an implemented claim: first N repeated 429/expected cancellation events per fixed route/operation + outcome + status, per replica/window, then an exact suppressed summary even if traffic becomes quiet. Keep every request metric and other errors. No client-version/build, user, token or device labels. Platform #100 defines guidance; consumer implementation and verification remain separate.
   - No log line per consumed record at INFO.
   - Trace sampling stays bounded after idle periods (photon-platform 2.16.2 hotfix; 3.0.2 or later).
 - **Reactive code never blocks:** no `.block()`, and no DB connection held across continuations. Kafka handlers propagate failures; they never swallow a DB error and commit.
@@ -52,6 +53,9 @@ These held the platform at 10K, 15K and 100K devices in the October 2026 qualifi
 - [ ] **Tests:** they fail without the fix, and the PR says how the change will be verified on dev after the deploy.
 
 ## This repository: keep these
+
+Source reconciliation: target `main` at `d9be3f994d57a26f0c52771c5f11b54ce57d266c` inspected on 2026-10-27. Current-code statements refer to that snapshot. Historical measurements, source configuration, proposed requirements and actual rollout evidence remain distinct; no new live qualification is implied.
+
 
 **Where the code is.** `main` mirrors the upstream 2.4.1 release plus docs. The qualified Photon changes live on branch `rig/2.4.1-qualification` (PR #1 into `release-2.4.1`); the idle-eviction fix is on `fix/http-auth-pool-idle-eviction`. Paths below name files on those branches. On `main` each item is a requirement, not yet present. "Deploy-side" means the value lives in the broker Helm values or ConfigMaps (kub-server-config, aws-fresh), not in this repo.
 
