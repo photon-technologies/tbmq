@@ -80,7 +80,7 @@ Source reconciliation: target `main` at `d9be3f994d57a26f0c52771c5f11b54ce57d266
 
 ### Images and claims
 
-- **Track the inherited CVEs; don't waive them (MQ-12).** The TBMQ image carried 56 inherited HIGH/CRITICAL findings, unresolved and not waived. The qualification branch pins the base by digest (`docker.base.image` in `msa/pom.xml`: `amazoncorretto:25-al2023-headless@sha256:2cffa0f4…`); `main` uses the unpinned `thingsboard/openjdk25:trixie-slim`.
+- **Track the inherited CVEs; don't waive them (MQ-12).** The 2026-10-09 TBMQ qualification records reported 56 inherited HIGH/CRITICAL findings, unresolved and not waived at that time. This is historical evidence, not a current scan or a waiver. Require a fresh scan of every platform digest in the actual candidate image index before making a current vulnerability claim. The qualification branch pins the base by digest (`docker.base.image` in `msa/pom.xml`: `amazoncorretto:25-al2023-headless@sha256:2cffa0f4…`); `main` uses the unpinned `thingsboard/openjdk25:trixie-slim`.
 - **Check native code per architecture (IM-2):** MQTT TLS, native crypto and LZ4 on amd64 and arm64. Commit `829a577` on the qualification branch adds native ARM and AMD runtime support.
 - **Simulator proof is not hardware proof (MQ-13).** Don't claim device TLS, heap or power-loss behavior from the simulator. Open: confirm firmware trusts the Let's Encrypt chain ending at ISRG Root X2 on the dev broker.
 
